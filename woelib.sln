@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35312.102
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "woelib", "woelib\woelib.csproj", "{49335BDD-6B04-43AE-AAA1-41597E2390DF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{13A5526C-B0B8-4D70-9BCA-128849A0818E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{49335BDD-6B04-43AE-AAA1-41597E2390DF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{49335BDD-6B04-43AE-AAA1-41597E2390DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{49335BDD-6B04-43AE-AAA1-41597E2390DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{49335BDD-6B04-43AE-AAA1-41597E2390DF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{13A5526C-B0B8-4D70-9BCA-128849A0818E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13A5526C-B0B8-4D70-9BCA-128849A0818E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13A5526C-B0B8-4D70-9BCA-128849A0818E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13A5526C-B0B8-4D70-9BCA-128849A0818E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CFBE55A6-7778-4827-A891-337275F65584}
+	EndGlobalSection
+EndGlobal
