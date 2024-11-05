@@ -5,6 +5,7 @@ using woelib;
 
 namespace Test
 {
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     [TestClass]
     public class CorrelationTest
     {
@@ -154,84 +155,82 @@ namespace Test
 
             const int WIDTH = 1024;
             const int HEIGHT = 1024;
-            using (Bitmap b = new Bitmap(WIDTH, HEIGHT))
+            using Bitmap b = new(WIDTH, HEIGHT);
+            int yellow = (int)Math.Round((1.0 - Math.Abs(cor)) * 255.4);
+            Color trendColor = Color.FromArgb(255, yellow, 0);
+            for (int x = 0; x < WIDTH; ++x)
             {
-                int yellow = (int)Math.Round((1.0 - Math.Abs(cor)) * 255.4);
-                Color trendColor = Color.FromArgb(255, yellow, 0);
-                for (int x = 0; x < WIDTH; ++x)
+                double dx = x / (double)WIDTH;
+                double dy = (dx * slope) + offset;
+
+                if (dy < 0)
+                    continue;
+
+                int px = (int)Math.Round((WIDTH - 1) * dx);
+                int py = (HEIGHT - 1) - (int)Math.Round((HEIGHT - 1) * dy);
+
+                if (px >= 0 && py >= 0 && px < WIDTH && py < HEIGHT)
+                    b.SetPixel(px, py, trendColor);
+            }
+
+            for (int o = 0; o < 10; ++o)
+            {
+                b.SetPixel(o, 0, Color.Green);
+                b.SetPixel(0, o, Color.Green);
+                b.SetPixel(o, HEIGHT - 1, Color.Green);
+                b.SetPixel(WIDTH - 1, o, Color.Green);
+                b.SetPixel((WIDTH - 1) - o, 0, Color.Green);
+                b.SetPixel(0, (HEIGHT - 1) - o, Color.Green);
+                b.SetPixel((WIDTH - 1) - o, HEIGHT - 1, Color.Green);
+                b.SetPixel(WIDTH - 1, (HEIGHT - 1) - o, Color.Green);
+            }
+
+            HashSet<Tuple<int, int>> used = [];
+            for (int i = 0; i < graph.Count; ++i)
+            {
+                double scaledX = graph[i].Item1;
+                double scaledY = graph[i].Item2;
+                int x = (int)Math.Round((WIDTH - 1) * scaledX);
+                int y = (HEIGHT - 1) - (int)Math.Round((HEIGHT - 1) * scaledY);
+                if (used.Contains(Tuple.Create(x, y)))
                 {
-                    double dx = x / (double)WIDTH;
-                    double dy = (dx * slope) + offset;
-
-                    if (dy < 0)
-                        continue;
-
-                    int px = (int)Math.Round((WIDTH - 1) * dx);
-                    int py = (HEIGHT - 1) - (int)Math.Round((HEIGHT - 1) * dy);
-
-                    if (px >= 0 && py >= 0 && px < WIDTH && py < HEIGHT)
-                        b.SetPixel(px, py, trendColor);
-                }
-
-                for (int o = 0; o < 10; ++o)
-                {
-                    b.SetPixel(o, 0, Color.Green);
-                    b.SetPixel(0, o, Color.Green);
-                    b.SetPixel(o, HEIGHT - 1, Color.Green);
-                    b.SetPixel(WIDTH - 1, o, Color.Green);
-                    b.SetPixel((WIDTH - 1) - o, 0, Color.Green);
-                    b.SetPixel(0, (HEIGHT - 1) - o, Color.Green);
-                    b.SetPixel((WIDTH - 1) - o, HEIGHT - 1, Color.Green);
-                    b.SetPixel(WIDTH - 1, (HEIGHT - 1) - o, Color.Green);
-                }
-
-                HashSet<Tuple<int, int>> used = new HashSet<Tuple<int, int>>();
-                for (int i = 0; i<graph.Count; ++i)
-                {
-                    double scaledX = graph[i].Item1;
-                    double scaledY = graph[i].Item2;
-                    int x = (int)Math.Round((WIDTH - 1) * scaledX);
-                    int y = (HEIGHT - 1) - (int)Math.Round((HEIGHT - 1) * scaledY);
-                    if (used.Contains(Tuple.Create(x, y)))
+                    for (int o = 0; o < 8; ++o)
                     {
-                        for (int o = 0; o < 8; ++o)
+                        int oo = o < 4 ? o : o + 1;
+                        int od = (oo + x + (WIDTH * y)) % 9;
+                        int dx = x + (od % 3) - 1;
+                        int dy = y + (od / 3) - 1;
+                        if (dx < 0 || dy < 0)
+                            continue;
+                        if (dx > (WIDTH - 1) || dy > (HEIGHT - 1))
+                            continue;
+                        if (b.GetPixel(dx, dy) != Color.White)
                         {
-                            int oo = o < 4 ? o : o + 1;
-                            int od = (oo + x + (WIDTH * y)) % 9;
-                            int dx = x + (od % 3) - 1;
-                            int dy = y + (od / 3) - 1;
-                            if (dx < 0 || dy < 0)
-                                continue;
-                            if (dx > (WIDTH - 1) || dy > (HEIGHT - 1))
-                                continue;
-                            if (b.GetPixel(dx, dy) != Color.White)
-                            {
-                                b.SetPixel(dx, dy, Color.White);
-                                used.Add(new Tuple<int, int>(x, y));
-                                break;
-                            }
+                            b.SetPixel(dx, dy, Color.White);
+                            used.Add(new Tuple<int, int>(x, y));
+                            break;
                         }
                     }
-                    else
-                    {
-                        b.SetPixel(x, y, Color.White);
-                        used.Add(new Tuple<int, int>(x, y));
-                    }
-
-                    Graphics g = Graphics.FromImage(b);
-
-                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                    g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
-                    RectangleF rectf = new RectangleF(Math.Min(x, WIDTH - 40), Math.Min(y, HEIGHT - 20), 90, 50);
-                    g.DrawString(_nameList[i], new Font("Tahoma", 8), Brushes.White, rectf);
-
-                    g.Flush();
+                }
+                else
+                {
+                    b.SetPixel(x, y, Color.White);
+                    used.Add(new Tuple<int, int>(x, y));
                 }
 
-                string filename = $"graph.png";
-                b.Save(filename.Trim().Replace(' ', '_'), ImageFormat.Png);
+                Graphics g = Graphics.FromImage(b);
+
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                RectangleF rectf = new(Math.Min(x, WIDTH - 40), Math.Min(y, HEIGHT - 20), 90, 50);
+                g.DrawString(_nameList[i], new Font("Tahoma", 8), Brushes.White, rectf);
+
+                g.Flush();
             }
+
+            string filename = $"graph.png";
+            b.Save(filename.Trim().Replace(' ', '_'), ImageFormat.Png);
         }
     }
 }
