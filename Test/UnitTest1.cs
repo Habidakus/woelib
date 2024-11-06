@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Runtime.CompilerServices;
 using woelib;
 
 namespace Test
@@ -231,6 +232,401 @@ namespace Test
 
             string filename = $"graph.png";
             b.Save(filename.Trim().Replace(' ', '_'), ImageFormat.Png);
+        }
+    }
+
+    [TestClass]
+    public class DependancyEngineTest
+    {
+        enum TestOneDependancies
+        {
+            GetSeedMoney,
+            ConcreteGathered,
+            SteelGathered,
+            FuelGathered,
+            AccountantHired,
+            SupervisorHired,
+            ScientistsHired,
+            PowerPlantBuilt,
+            PowerWiredUp,
+            PowerPlantStarted,
+            MegaLaserInvented,
+            MegaLaserBuilt,
+            MegaLaserFired,
+        }
+
+        class MadScientistLair : IDependancyEngineDataHandler
+        {
+            public bool IsFinished { get; private set; } = false;
+            private readonly Random _random = new();
+
+            internal void CanHookUpPower(DependancyEngine<TestOneDependancies> dependancyEngine, int actionId)
+            {
+                Thread thread = new Thread(new ThreadStart(() =>
+                {
+                    Console.WriteLine("Can wire up base");
+                    Thread.Sleep(_random.Next(100, 500));
+                    Console.WriteLine("Power wired up");
+                    dependancyEngine.Resolve(TestOneDependancies.PowerWiredUp);
+                    dependancyEngine.MarkCompleted(actionId);
+                }));
+                thread.Start();
+            }
+
+            internal void CanStartPowerPlant(DependancyEngine<TestOneDependancies> dependancyEngine, int actionId)
+            {
+                Console.WriteLine("Power switch thrown");
+                dependancyEngine.Resolve(TestOneDependancies.PowerPlantStarted);
+                dependancyEngine.MarkCompleted(actionId);
+            }
+
+            internal void CanBuildPowerPlant(DependancyEngine<TestOneDependancies> dependancyEngine, int actionId)
+            {
+                Thread thread = new Thread(new ThreadStart(() =>
+                {
+                    Console.WriteLine("Can build power plant");
+                    Thread.Sleep(_random.Next(1000, 1500));
+                    Console.WriteLine("Power plant built");
+                    dependancyEngine.Resolve(TestOneDependancies.PowerPlantBuilt);
+                    dependancyEngine.MarkCompleted(actionId);
+                }));
+                thread.Start();
+            }
+
+            internal void CanGatherConcrete(DependancyEngine<TestOneDependancies> dependancyEngine, int actionId)
+            {
+                Thread thread = new Thread(new ThreadStart(() =>
+                {
+                    Console.WriteLine("Can gather concrete");
+                    Thread.Sleep(_random.Next(0, 1000));
+                    Console.WriteLine("Concrete gathered");
+                    dependancyEngine.Resolve(TestOneDependancies.ConcreteGathered);
+                    dependancyEngine.MarkCompleted(actionId);
+                }));
+                thread.Start();
+            }
+
+            internal void CanGatherSteel(DependancyEngine<TestOneDependancies> dependancyEngine, int actionId)
+            {
+                Thread thread = new Thread(new ThreadStart(() =>
+                {
+                    Console.WriteLine("Can gather steel");
+                    Thread.Sleep(_random.Next(0, 1000));
+                    Console.WriteLine("Steel gathered");
+                    dependancyEngine.Resolve(TestOneDependancies.SteelGathered);
+                    dependancyEngine.MarkCompleted(actionId);
+                }));
+                thread.Start();
+            }
+
+            internal void CanGatherFuel(DependancyEngine<TestOneDependancies> dependancyEngine, int actionId)
+            {
+                Thread thread = new Thread(new ThreadStart(() =>
+                {
+                    Console.WriteLine("Can gather fuel");
+                    Thread.Sleep(_random.Next(0, 1000));
+                    Console.WriteLine("Fuel gathered");
+                    dependancyEngine.Resolve(TestOneDependancies.FuelGathered);
+                    dependancyEngine.MarkCompleted(actionId);
+                }));
+                thread.Start();
+            }
+
+            internal void CanHireAccountant(DependancyEngine<TestOneDependancies> dependancyEngine, int actionId)
+            {
+                Console.WriteLine("Accountant hired");
+                dependancyEngine.Resolve(TestOneDependancies.AccountantHired);
+                dependancyEngine.MarkCompleted(actionId);
+            }
+
+            internal void CanHireSupervisor(DependancyEngine<TestOneDependancies> dependancyEngine, int actionId)
+            {
+                Console.WriteLine("Supervisor hired");
+                dependancyEngine.Resolve(TestOneDependancies.SupervisorHired);
+                dependancyEngine.MarkCompleted(actionId);
+            }
+
+            internal void CanHireScientists(DependancyEngine<TestOneDependancies> dependancyEngine, int actionId)
+            {
+                Console.WriteLine("Scientist hired");
+                dependancyEngine.Resolve(TestOneDependancies.ScientistsHired);
+                dependancyEngine.MarkCompleted(actionId);
+            }
+
+            internal void CanInventMegaLaser(DependancyEngine<TestOneDependancies> dependancyEngine, int actionId)
+            {
+                Thread thread = new Thread(new ThreadStart(() =>
+                {
+                    Console.WriteLine("Can invent Mega Laser");
+                    Thread.Sleep(_random.Next(10, 1100));
+                    Console.WriteLine("Mega Laser Invented");
+                    dependancyEngine.Resolve(TestOneDependancies.MegaLaserInvented);
+                    dependancyEngine.MarkCompleted(actionId);
+                }));
+                thread.Start();
+            }
+
+            internal void CanBuildMegaLaser(DependancyEngine<TestOneDependancies> dependancyEngine, int actionId)
+            {
+                Console.WriteLine("Mega Laser Built");
+                dependancyEngine.Resolve(TestOneDependancies.MegaLaserBuilt);
+                dependancyEngine.MarkCompleted(actionId);
+            }
+
+            internal void CanFireMegaLaser(DependancyEngine<TestOneDependancies> dependancyEngine, int actionId)
+            {
+                Console.WriteLine("Mega Laser Fired");
+                dependancyEngine.Resolve(TestOneDependancies.MegaLaserFired);
+                dependancyEngine.MarkCompleted(actionId);
+            }
+
+            internal void OnFinished(DependancyEngine<TestOneDependancies> dependancyEngine)
+            {
+                Console.WriteLine("MUHAHAHAH!!!");
+                IsFinished = true;
+            }
+        }
+
+        [TestMethod]
+        public void TestOne()
+        {
+            try
+            {
+                MadScientistLair dataHandler = new MadScientistLair();
+                DependancyEngine<TestOneDependancies> de = new(dataHandler);
+                de.Add(dataHandler.CanBuildPowerPlant, TestOneDependancies.SupervisorHired, TestOneDependancies.ConcreteGathered, TestOneDependancies.SteelGathered);
+                de.Add(dataHandler.CanHookUpPower, TestOneDependancies.SupervisorHired, TestOneDependancies.PowerPlantBuilt);
+                de.Add(dataHandler.CanStartPowerPlant, TestOneDependancies.PowerWiredUp, TestOneDependancies.FuelGathered).Name = "Start Up Power Plant";
+                de.Add(dataHandler.CanGatherConcrete, TestOneDependancies.AccountantHired).Name = "Gather Concrete";
+                de.Add(dataHandler.CanGatherSteel, TestOneDependancies.AccountantHired).Name = "Gather Steel";
+                de.Add(dataHandler.CanGatherFuel, TestOneDependancies.AccountantHired).Name = "Gather Fuel";
+                de.Add(dataHandler.CanHireAccountant, TestOneDependancies.GetSeedMoney).Name = "Hire Accountant";
+                de.Add(dataHandler.CanHireSupervisor, TestOneDependancies.GetSeedMoney).Name = "Hire Supervisor";
+                de.Add(dataHandler.CanHireScientists, TestOneDependancies.GetSeedMoney).Name = "Hire Scientists";
+                de.Add(dataHandler.CanInventMegaLaser, TestOneDependancies.ScientistsHired).Name = "Invent Mega Laser";
+                de.Add(dataHandler.CanBuildMegaLaser, TestOneDependancies.SupervisorHired, TestOneDependancies.ConcreteGathered, TestOneDependancies.SteelGathered, TestOneDependancies.MegaLaserInvented).Name = "Build Mega Laser";
+                de.Add(dataHandler.CanFireMegaLaser, TestOneDependancies.PowerPlantStarted, TestOneDependancies.MegaLaserBuilt).Name = "Fire Laser";
+                de.OnFinished += dataHandler.OnFinished;
+
+                de.Resolve(TestOneDependancies.GetSeedMoney);
+                de.Start();
+
+                Console.WriteLine("\nStart State:");
+                Console.WriteLine(de.GetState());
+
+                DateTime start = DateTime.Now;
+                while (dataHandler.IsFinished == false && (DateTime.Now - start).TotalSeconds < 1)
+                    ;
+
+                Console.WriteLine("\nMid State:");
+                Console.WriteLine(de.GetState());
+
+                while (dataHandler.IsFinished == false && (DateTime.Now - start).TotalSeconds < 5)
+                    ;
+
+                Console.WriteLine("\nEnd State:");
+                Console.WriteLine(de.GetState());
+
+                Assert.IsFalse(de.IsRunning);
+            }
+            catch (Exception ex)
+            {
+                Assert.Fail(ex.Message);
+            }
+        }
+
+        enum UserInfoDeps
+        {
+            STARTED,
+            AdminPermissionLevel,
+            TroubleTicketId,
+            UserEmailAddr,
+            UserId,
+        }
+
+        class UserInfoCache : IDependancyEngineDataHandler
+        {
+            private bool DoesAdminHaveSupervisorPermissions() { return false; }
+            private long GetUserIdFromEmailAddress(string userEmail) { return userEmail.GetHashCode(); }
+            private long GetUserIdFromTroubleTicketId(long troubleTicketId) { return long.MaxValue - troubleTicketId; }
+            private string GetAddressFromUserId(long userId) { return $"{Math.Abs(userId / 100 + 13) % 100} West Ave, Somewhere, CA"; }
+            private string GetEmailFromUserId(long userId) { return $"user{userId % 100}@gmail.com"; }
+
+            public bool? Supervisor { get; set; } = false;
+            public long? TroubleTicketId { get; set; } = null;
+            public long? UserId { get; set; } = null;
+            public string UserEmail { get; set; } = string.Empty;
+            public string UserAddress { get; set; } = string.Empty;
+
+            internal void FetchAdminPermissionLevel(DependancyEngine<UserInfoDeps> dependancyEngine, int actionId)
+            {
+                if (Supervisor == null)
+                {
+                    Supervisor = DoesAdminHaveSupervisorPermissions();
+                }
+
+                dependancyEngine.Resolve(UserInfoDeps.AdminPermissionLevel);
+                dependancyEngine.MarkCompleted(actionId);
+            }
+
+            internal void FetchUserId(DependancyEngine<UserInfoDeps> dependancyEngine, int actionId)
+            {
+                if (UserId == null)
+                {
+                    if (TroubleTicketId != null)
+                    {
+                        if (TroubleTicketId != null)
+                        {
+                            // Query the DB's trouble ticket table for the user id associated with this trouble ticket
+                            UserId = GetUserIdFromTroubleTicketId((long)TroubleTicketId);
+                            dependancyEngine.Resolve(UserInfoDeps.UserId);
+                        }
+                        else
+                        {
+                            throw new Exception($"Can not get email with null User ID");
+                        }
+                    }
+                    else if (!string.IsNullOrWhiteSpace(UserEmail))
+                    {
+                        // Query the UserId via the Email table
+                        UserId = GetUserIdFromEmailAddress(UserEmail);
+                        dependancyEngine.Resolve(UserInfoDeps.UserId);
+                    }
+                    else
+                    {
+                        throw new Exception("Both trouble ticket Id and user email are unknown!");
+                    }
+                }
+
+                dependancyEngine.MarkCompleted(actionId);
+            }
+
+            internal void FetchUserEmail(DependancyEngine<UserInfoDeps> dependancyEngine, int actionId)
+            {
+                if (string.IsNullOrWhiteSpace(UserEmail))
+                {
+                    if (Supervisor == true)
+                    {
+                        if (UserId != null)
+                        {
+                            UserEmail = GetEmailFromUserId((long)UserId);
+                            dependancyEngine.Resolve(UserInfoDeps.UserEmailAddr);
+                        }
+                        else
+                        {
+                            throw new Exception($"Can not get email with null User ID");
+                        }
+                    }
+                    else
+                    {
+                        UserEmail = "(redacted)";
+                    }
+                }
+
+                dependancyEngine.MarkCompleted(actionId);
+            }
+
+            internal void FetchUserAddress(DependancyEngine<UserInfoDeps> dependancyEngine, int actionId)
+            {
+                if (string.IsNullOrWhiteSpace(UserAddress))
+                {
+                    if (Supervisor == true)
+                    {
+                        if (UserId != null)
+                        {
+                            UserAddress = GetAddressFromUserId((long)UserId);
+                        }
+                        else
+                        {
+                            throw new Exception($"Can not get email with null User ID");
+                        }
+                    }
+                    else
+                    {
+                        UserAddress = "(redacted)";
+                    }
+                }
+
+                dependancyEngine.MarkCompleted(actionId);
+            }
+
+            internal void FetchCompleted(DependancyEngine<UserInfoDeps> dependancyEngine)
+            {
+                //DumpInfo();
+            }
+
+            internal void DumpInfo()
+            {
+                Console.WriteLine($"Id={UserId} Email={UserEmail} Address={UserAddress} TroubleTicketId={TroubleTicketId}");
+            }
+        }
+
+        [TestMethod]
+        public void TestTwo()
+        {
+            foreach (bool? supe in new List<bool?>([true, false, null]))
+            {
+                foreach (long? troubleTicketId in new List<long?>([591, null]))
+                {
+                    foreach (string? email in new List<string?>([null, "woe@full.city"]))
+                    {
+                        DependancyEngine<UserInfoDeps> infoDepEngine = GenerateUserInfoDependancyEngine();
+                        if (infoDepEngine.DataHandler is UserInfoCache uic)
+                        {
+                            if (supe != null)
+                            {
+                                uic.Supervisor = supe;
+                                infoDepEngine.Resolve(UserInfoDeps.AdminPermissionLevel);
+                            }
+
+                            if (troubleTicketId != null)
+                            {
+                                uic.TroubleTicketId = troubleTicketId;
+                                infoDepEngine.Resolve(UserInfoDeps.TroubleTicketId);
+                            }
+
+                            if (email != null)
+                            {
+                                uic.UserEmail = email;
+                                infoDepEngine.Resolve(UserInfoDeps.UserEmailAddr);
+                            }
+
+                            infoDepEngine.Resolve(UserInfoDeps.STARTED);
+                            infoDepEngine.Start();
+                            Assert.IsFalse(infoDepEngine.IsRunning);
+                            if (supe != true)
+                            {
+                                Assert.IsFalse(uic.UserAddress.Contains("West"));
+                                if (string.IsNullOrWhiteSpace(email))
+                                {
+                                    Assert.IsFalse(uic.UserEmail.Contains("@"));
+                                }
+                            }
+
+                            if (email != null || troubleTicketId != null)
+                            {
+                                Assert.IsTrue(uic.UserId != null);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private static DependancyEngine<UserInfoDeps> GenerateUserInfoDependancyEngine()
+        {
+            // #TODO: I don't like how we can double the amount of work if we have both email and trouble ticket we'll 
+            // be fetching the User ID in two different ways. We should have a simple syntax to reduce it to just one
+            // method or the other if both are present.
+            UserInfoCache userInfoCache = new UserInfoCache();
+            DependancyEngine<UserInfoDeps> infoDepEngine = new(userInfoCache);
+            infoDepEngine.Add(userInfoCache.FetchAdminPermissionLevel, UserInfoDeps.STARTED);
+            infoDepEngine.Add(userInfoCache.FetchUserId, UserInfoDeps.UserEmailAddr).Name = "Fetch User Id";
+            infoDepEngine.Add(userInfoCache.FetchUserId, UserInfoDeps.TroubleTicketId).Name = "Fetch User Id";
+            infoDepEngine.Add(userInfoCache.FetchUserEmail, UserInfoDeps.UserId, UserInfoDeps.AdminPermissionLevel).Name = "Fetch Email";
+            infoDepEngine.Add(userInfoCache.FetchUserAddress, UserInfoDeps.UserId, UserInfoDeps.AdminPermissionLevel).Name = "Fetch Addr";
+            infoDepEngine.OnFinished += userInfoCache.FetchCompleted;
+            return infoDepEngine;
         }
     }
 }
