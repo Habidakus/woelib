@@ -2,14 +2,22 @@
 
 namespace woelib
 {
+    /// <summary>
+    /// Class used by <c>DependancyEngine</c> to track which actions haven't been fufilled yet.
+    /// </summary>
     public class Action<T> where T : Enum
     {
         readonly List<T> m_remainingDependacies = [];
         readonly int m_id;
+        internal int Id { get { return m_id; } }
         internal DependancyEngine<T>.StartTaskCallback ResolvedCallback { get; private set; }
-        public int Id { get { return m_id; } }
+        internal bool HasDependancies { get { return m_remainingDependacies.Any(); } }
+
+        /// <summary>
+        /// Useful mutator to name and track an action.
+        /// This <c>Name</c> will be used when <c>DependancyEngine.GetState()</c> is called.
+        /// </summary>
         public string Name { get; set; } = string.Empty;
-        public bool HasDependancies { get { return m_remainingDependacies.Any(); } }
 
         internal Action(DependancyEngine<T>.StartTaskCallback callback, int id, params T[] dependancies)
         {
@@ -55,12 +63,19 @@ namespace woelib
     /// <summary>
     /// A utility class to help with marshaling all the things that need to be done, given various dependancies.
     /// 
-    /// admin permission level: 
-    /// user id: trouble ticket id
-    /// user id: user email
-    /// user address: user id, admin permission level
-    /// user email: user id, admin permission level
-    /// 
+    /// <code>
+    /// UserInfoCache userInfoCache = new UserInfoCache();
+    /// DependancyEngine&lt;UserInfoDeps&gt; infoDepEngine = new(userInfoCache);
+    /// infoDepEngine.Add(userInfoCache.FetchAdminPermissionLevel, UserInfoDeps.STARTED);
+    /// infoDepEngine.Add(userInfoCache.FetchUserId, UserInfoDeps.UserEmailAddr).Name = "Fetch User Id via email";
+    /// infoDepEngine.Add(userInfoCache.FetchUserId, UserInfoDeps.TroubleTicketId).Name = "Fetch User Id via trouble ticket";
+    /// infoDepEngine.Add(userInfoCache.FetchUserEmail, UserInfoDeps.UserId, UserInfoDeps.AdminPermissionLevel).Name = "Fetch Email";
+    /// infoDepEngine.Add(userInfoCache.FetchUserAddress, UserInfoDeps.UserId, UserInfoDeps.AdminPermissionLevel).Name = "Fetch Addr";
+    /// infoDepEngine.OnFinished += userInfoCache.FetchCompleted;
+    /// infoDepEngine.Resolve(UserInfoDeps.STARTED);
+    /// /* Either seed and resolve email, or trouble ticket id */
+    /// infoDepEngine.Start();
+    /// </code>
     /// </summary>
     /// <typeparam name="T"></typeparam>
     public class DependancyEngine<T> where T : Enum
@@ -70,11 +85,18 @@ namespace woelib
 
         public event FinishedCallback OnFinished = delegate { };
 
-        private readonly IDependancyEngineDataHandler m_dependancyEngineDataHandler;
-        public IDependancyEngineDataHandler DataHandler { get { return m_dependancyEngineDataHandler; } }
+        private readonly IDependancyEngineDataHandler? m_dependancyEngineDataHandler;
 
         /// <summary>
-        /// 
+        /// If the <c>DependancyEngine</c> was given an <c>IDependancyEngineDataHandler</c> object when it was
+        /// constructed, that same object can always be retried through this mutator.
+        /// </summary>
+        public IDependancyEngineDataHandler? DataHandler { get { return m_dependancyEngineDataHandler; } }
+
+        /// <summary>
+        /// Returns true if there are outstanding actions (registered via <c>Add()</c>) that have not yet reported
+        /// completion. Note that <c>IsRunning</c> will return false if there are actions that have never been run
+        /// because their dependancies were never resolved.
         /// </summary>
         public bool IsRunning
         {
@@ -98,25 +120,46 @@ namespace woelib
         private int m_nextActionId = 0;
         private readonly List<Action<T>> m_actions = [];
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="dataHandler"></param>
-        public DependancyEngine(IDependancyEngineDataHandler dataHandler)
+        /// <summary>Constructor for the dependancy engine.</summary>
+        /// <param name="dataHandler">A cache where the user can store any information they might need through-out the running of this dependancy resolution.</param>
+        public DependancyEngine(IDependancyEngineDataHandler? dataHandler = null)
         {
             m_dependancyEngineDataHandler = dataHandler;
         }
 
         /// <summary>
+        /// Registers an action (<c>ResolveCallback</c>) to take once the given <c>dependancies</c> are completed.
+        /// For instance you could expect an information gathering one to have:
+        /// 
+        /// <code>
+        /// infoDepEngine.Add(userInfoCache.FetchUserEmail, UserInfoDeps.UserId, UserInfoDeps.AdminPermissionLevel).Name = "Fetch Email";
+        /// </code>
+        /// Where the userInfoCache class would have the following function defined:
+        /// <code>
+        /// internal void FetchUserEmail(DependancyEngine&lt;UserInfoDeps&gt; dependancyEngine, int actionId)
+        /// {
+        ///     if (!string.IsNullOrWhiteSpace(UserEmail))
+        ///     {
+        ///         dependancyEngine.MarkCompleted(actionId);
+        ///     }
+        ///     else if (!HasSuperviorPermissions)
+        ///     {
+        ///         UserEmail = "(redacted)";
+        ///         dependancyEngine.MarkCompleted(actionId);
+        ///     }
+        ///     else
+        ///         FetchEmailFromDBAndThenMarkItResolvedAndCompleted(UserId, dependancyEngine, actionId);
+        /// }
+        /// </code>
         /// 
         /// </summary>
-        /// <param name="resolveCallback"></param>
-        /// <param name="dependancies"></param>
-        public Action<T> Add(StartTaskCallback resolveCallback, params T[] dependancies)
+        /// <param name="function">The method to call once all the given <c>dependancies</c> are met.</param>
+        /// <param name="dependancies">A list of one or more dependancies that all must be marked as resolved (via <c>Resolve()</c>) before the given <c>function</c> will be invoked.</param>
+        public Action<T> Add(StartTaskCallback function, params T[] dependancies)
         {
             lock (m_lock)
             {
-                Action<T> action = new Action<T>(resolveCallback, ++m_nextActionId, dependancies);
+                Action<T> action = new Action<T>(function, ++m_nextActionId, dependancies);
                 m_actions.Add(action);
                 m_awaitingActions.Add(action.Id);
                 return action;
@@ -124,9 +167,9 @@ namespace woelib
         }
 
         /// <summary>
-        /// 
+        /// Start processing the dependancy engine - at least one call to <c>Resolve()</c> should have been called before <c>Start()</c> is invoked.
         /// </summary>
-        /// <exception cref="Exception"></exception>
+        /// <exception cref="Exception">Thrown if invoked twice on the same dependancy engine.</exception>
         public void Start()
         {
             HashSet<T>? dependanciesToResolve = null;
@@ -149,7 +192,7 @@ namespace woelib
         }
 
         /// <summary>
-        /// 
+        /// Used when we know that a dependancy has been resolved successfully and can be used by any action awaiting it.
         /// </summary>
         /// <param name="dependancy"></param>
         public void Resolve(T dependancy)
@@ -182,9 +225,21 @@ namespace woelib
         }
 
         /// <summary>
-        /// 
+        /// Mark any action that was added to the system via the <c>Add()</c> method as completed. Until an action is
+        /// marked completed it will be considered to be still running, and the dependancy engine's <c>IsRunning</c>
+        /// will return <c>true</c>.
+        /// <code>
+        /// internal void FetchEmailFromDBAndThenMarkItResolvedAndCompleted(long userId, DependancyEngine&lt;UserInfoDeps&gt; dependancyEngine, int actionId)
+        /// {
+        ///     Task.Run(() => {
+        ///         UserEmail = DB.FetchUserEmailFromUserIdAsync(userId).Result;
+        ///         dependancyEngine.Resolve(UserInfoDeps.UserEmailAddr);
+        ///         dependancyEngine.MarkCompleted(actionId);
+        ///     });
+        /// }
+        /// </code>
         /// </summary>
-        /// <param name="actionId"></param>
+        /// <param name="actionId">The action we are marking completed, this was the int passed in when the <c>StartTaskCallback</c> was invoked.</param>
         /// <exception cref="Exception"></exception>
         public void MarkCompleted(int actionId)
         {
@@ -214,9 +269,9 @@ namespace woelib
         }
 
         /// <summary>
-        /// 
+        /// At any time this can be called to get a debug readout of what actions are still awaiting their dependancies.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>A multi-line string describing each action and it's unresolved dependancies.</returns>
         public string GetState()
         {
             StringBuilder sb = new();
