@@ -1,4 +1,4 @@
-using System.Diagnostics;
+//using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.CompilerServices;
@@ -7,6 +7,26 @@ using woelib;
 namespace Test
 {
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    [TestClass]
+    public class StringUtilTest
+    {
+        [TestMethod]
+        public void StrDistTest()
+        {
+            Assert.IsTrue(StringUtil.StrDist("money", "money") == 0);
+            Assert.IsTrue(StringUtil.StrDist("money", "monkey") == 1);
+            Assert.IsTrue(StringUtil.StrDist("monkey", "money") == 1);
+            Assert.IsTrue(StringUtil.StrDist("money", "Money") == 1);
+            Assert.IsTrue(StringUtil.StrDist("Money", "money") == 1);
+            Assert.IsTrue(StringUtil.StrDist("money", "") == 5);
+            Assert.IsTrue(StringUtil.StrDist("", "money") == 5);
+            Assert.IsTrue(StringUtil.StrDist("Saturday", "Sunday") == 3);
+            Assert.IsTrue(StringUtil.StrDist("Sunday", "Saturday") == 3);
+            Assert.IsTrue(StringUtil.StrDist("kitten", "sitting") == 3);
+            Assert.IsTrue(StringUtil.StrDist("sitting", "kitten") == 3);
+        }
+    }
+
     [TestClass]
     public class CorrelationTest
     {
