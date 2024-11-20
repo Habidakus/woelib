@@ -1,12 +1,13 @@
 //using System.Diagnostics;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Runtime.CompilerServices;
+//using System.Runtime.CompilerServices;
 using woelib;
+//using System.Linq;
 
 namespace Test
 {
-    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     [TestClass]
     public class StringUtilTest
     {
@@ -27,26 +28,142 @@ namespace Test
         }
     }
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     [TestClass]
-    public class CorrelationTest
+    public class MathUtilTest
     {
+        class IntComparer : IComparer<int>
+        {
+            public int CompareCount = 0;
+            public int Compare(int x, int y)
+            {
+                CompareCount += 1;
+
+                bool xTwo = (x % 2) == 0;
+                bool yTwo = (y % 2) == 0;
+                if (xTwo != yTwo)
+                    return xTwo ? -1 : 1;
+
+                bool xThree = (x % 3) == 0;
+                bool yThree = (y % 3) == 0;
+                if (xThree != yThree)
+                    return xThree ? -1 : 1;
+
+                bool xFive = (x % 5) == 0;
+                bool yFive = (y % 5) == 0;
+                if (xFive != yFive)
+                    return xFive ? -1 : 1;
+
+                bool xSeven = (x % 7) == 0;
+                bool ySeven = (y % 7) == 0;
+                if (xSeven != ySeven)
+                    return xSeven ? -1 : 1;
+
+                bool xEleven = (x % 11) == 0;
+                bool yEleven = (y % 11) == 0;
+                if (xEleven != yEleven)
+                    return xEleven ? -1 : 1;
+
+                bool xThirteen = (x % 13) == 0;
+                bool yThirteen = (y % 13) == 0;
+                if (xThirteen != yThirteen)
+                    return xThirteen ? -1 : 1;
+
+                return x.CompareTo(y);
+            }
+        }
+
+        [TestMethod]
+        public void NthElementComparerTest()
+        {
+            Random rnd = new Random();
+            int[] intSort = new int[102400];
+            int[] intNth = new int[102400];
+            for (int i = 0; i < intNth.Length; i++)
+            {
+                intSort[i] = intNth[i] = rnd.Next();
+            }
+
+            IntComparer nthComp = new();
+            IntComparer sortComp = new();
+
+            Span<int> nthSpan = intNth.AsSpan();
+            MathUtil.NthElement(nthSpan, 1024, nthComp);
+
+            Span<int> intSpan = intSort.AsSpan();
+            intSpan.Sort(sortComp);
+
+            int nthTotalCompares = nthComp.CompareCount;
+            int sortTotalCompares = sortComp.CompareCount;
+
+            Assert.IsTrue(nthTotalCompares < sortTotalCompares);
+        }
+
+        [TestMethod]
+        public void NthElementSpeedTest()
+        {
+            for (int j = 0; j < 5000; j++)
+            {
+                Random rnd = new Random();
+                int[] intNth = new int[10240];
+                for (int i = 0; i < intNth.Length; i++)
+                {
+                    intNth[i] = rnd.Next();
+                }
+
+                Span<int> nthSpan = intNth.AsSpan();
+                MathUtil.NthElement(nthSpan, 1024);
+
+                int highestBeforeN = nthSpan.Slice(0, 1023).ToArray().Max();
+                int lowestAfterN = nthSpan.Slice(1025).ToArray().Min();
+                Assert.IsTrue(highestBeforeN <= nthSpan[1024]);
+                Assert.IsTrue(lowestAfterN >= nthSpan[1024], $"lowestAfterN={lowestAfterN} but nthSpan[1022]={nthSpan[1022]}, nthSpan[1023]={nthSpan[1023]}, nthSpan[1024]={nthSpan[1024]}, nthSpan[1025]={nthSpan[1025]}");
+            }
+        }
+
+        [TestMethod]
+        public void NthElementTest()
+        {
+            string origin = "bathysphere";
+            for (int i = 0; i < 11; ++i)
+            {
+                Span<char> charList = origin.ToArray().AsSpan();
+                MathUtil.NthElement(charList, i);
+
+                if (i > 1)
+                {
+                    char[] prefix = charList.ToArray().AsSpan(0, i - 1).ToArray();
+                    char[] suffix = charList.ToArray().AsSpan(i + 1).ToArray();
+                    if (suffix.Length > 0)
+                    {
+                        Assert.IsTrue(prefix.Max() <= charList[i]);
+                        Assert.IsTrue(charList[i] <= suffix.Min());
+                    }
+                }
+            }
+
+            int[] intList = { 6, 1, 2, 3, 4, 5 };
+            MathUtil.NthElement(intList.AsSpan(), 2);
+            Assert.IsTrue(intList.AsSpan(0, 1).ToArray().Max() <= intList.AsSpan(2).ToArray().Min());
+        }
+
         [TestMethod]
         public void CalculatePhiTest()
         {
             List<bool> listA = [true, true, false, true, true, false, true, true];
             List<bool> listB = [false, false, true, false, false, true, false, false];
-            var cor_AA = Correlation.CalculatePhi(listA, listA, out double cor_AA_coverage);
+            var cor_AA = MathUtil.CalculatePhiCorrelation(listA, listA, out double cor_AA_coverage);
             Assert.IsTrue(cor_AA == 1);
             Assert.IsTrue(cor_AA_coverage == 0);
-            var cor_AB = Correlation.CalculatePhi(listA, listB, out double cor_AB_coverage);
+            var cor_AB = MathUtil.CalculatePhiCorrelation(listA, listB, out double cor_AB_coverage);
             Assert.IsTrue(cor_AB == -1);
             Assert.IsTrue(cor_AB_coverage == 0);
             List<bool> listC = [true, true, true, false, true, false, true, true];
-            var cor_AC = Correlation.CalculatePhi(listA, listC, out double cor_AC_coverage);
+            var cor_AC = MathUtil.CalculatePhiCorrelation(listA, listC, out double cor_AC_coverage);
             Assert.IsTrue(cor_AC > 0.1);
             Assert.IsTrue(cor_AC_coverage > 0.1);
             List<bool> listD = [false, false, true, false, false, true, false, true];
-            var cor_AD = Correlation.CalculatePhi(listA, listD, out double cor_AD_coverage);
+            var cor_AD = MathUtil.CalculatePhiCorrelation(listA, listD, out double cor_AD_coverage);
             Assert.IsTrue(cor_AD < 0.5);
             Assert.IsTrue(cor_AD_coverage == 0);
         }
@@ -66,15 +183,15 @@ namespace Test
                 listD.Add(i * (1.0 - i));
             }
 
-            var cor_AA = Correlation.CalculatePearson(listA, listA);
+            var cor_AA = MathUtil.CalculatePearsonCorrelation(listA, listA);
             Assert.IsTrue(cor_AA == 1.0);
-            var cor_AB = Correlation.CalculatePearson(listA, listB);
+            var cor_AB = MathUtil.CalculatePearsonCorrelation(listA, listB);
             Assert.IsTrue(cor_AB == -1.0);
-            var cor_AC = Correlation.CalculatePearson(listA, listC);
+            var cor_AC = MathUtil.CalculatePearsonCorrelation(listA, listC);
             Assert.IsTrue(cor_AC > 0.9);
-            var cor_AD = Correlation.CalculatePearson(listA, listD);
+            var cor_AD = MathUtil.CalculatePearsonCorrelation(listA, listD);
             Assert.IsTrue(cor_AD < -0.85);
-            var cor_CD = Correlation.CalculatePearson(listC, listD);
+            var cor_CD = MathUtil.CalculatePearsonCorrelation(listC, listD);
             Assert.IsTrue(cor_CD < -0.95);
         }
 
@@ -132,47 +249,47 @@ namespace Test
         [TestMethod]
         public void CalculateSpearmanTest()
         {
-            var cor_nameKg = Correlation.CalculateSpearman(_nameList, _kgList);
+            var cor_nameKg = MathUtil.CalculateSpearmanCorrelation(_nameList, _kgList);
             Assert.IsTrue(Math.Abs(cor_nameKg) < 0.15, "Name and KG should not correlate");
-            var cor_nameMeters = Correlation.CalculateSpearman(_nameList, _lengthList);
+            var cor_nameMeters = MathUtil.CalculateSpearmanCorrelation(_nameList, _lengthList);
             Assert.IsTrue(Math.Abs(cor_nameMeters) < 0.15, "Name and length should not correlate");
-            var cor_nameAge = Correlation.CalculateSpearman(_nameList, _ageList);
+            var cor_nameAge = MathUtil.CalculateSpearmanCorrelation(_nameList, _ageList);
             Assert.IsTrue(Math.Abs(cor_nameAge) < 0.3, $"Name and max age should not correlate ({cor_nameAge})");
-            var cor_nameHeart = Correlation.CalculateSpearman(_nameList, _heartList);
+            var cor_nameHeart = MathUtil.CalculateSpearmanCorrelation(_nameList, _heartList);
             Assert.IsTrue(Math.Abs(cor_nameHeart) < 0.33, $"Name and heart rate should not correlate ({cor_nameHeart})");
-            var cor_nameColor = Correlation.CalculateSpearman(_nameList, _colorList);
+            var cor_nameColor = MathUtil.CalculateSpearmanCorrelation(_nameList, _colorList);
             Assert.IsTrue(Math.Abs(cor_nameColor) < 0.15, "Name and Color should not correlate");
 
-            var cor_KgMeters = Correlation.CalculateSpearman(_kgList, _lengthList);
+            var cor_KgMeters = MathUtil.CalculateSpearmanCorrelation(_kgList, _lengthList);
             Assert.IsTrue(cor_KgMeters > 0.85, $"Weight and Length should correlate ({cor_KgMeters})");
-            var cor_KgAge = Correlation.CalculateSpearman(_kgList, _ageList);
+            var cor_KgAge = MathUtil.CalculateSpearmanCorrelation(_kgList, _ageList);
             Assert.IsTrue(cor_KgAge > 0.666);
-            var cor_KgHeart = Correlation.CalculateSpearman(_kgList, _heartList);
+            var cor_KgHeart = MathUtil.CalculateSpearmanCorrelation(_kgList, _heartList);
             Assert.IsTrue(cor_KgHeart < 0.5);
-            var cor_KgColor = Correlation.CalculateSpearman(_kgList, _colorList);
+            var cor_KgColor = MathUtil.CalculateSpearmanCorrelation(_kgList, _colorList);
             Assert.IsTrue(Math.Abs(cor_KgColor) < 0.33, $"Weight and Color should not correlate ({cor_KgColor})");
 
-            var cor_MetersAge = Correlation.CalculateSpearman(_lengthList, _ageList);
+            var cor_MetersAge = MathUtil.CalculateSpearmanCorrelation(_lengthList, _ageList);
             Assert.IsTrue(cor_MetersAge > 0.6, $"Length and age should correlate ({cor_MetersAge})");
-            var cor_MetersHeart = Correlation.CalculateSpearman(_lengthList, _heartList);
+            var cor_MetersHeart = MathUtil.CalculateSpearmanCorrelation(_lengthList, _heartList);
             Assert.IsTrue(cor_MetersHeart < -0.45, $"Length and heart rate should inversely correlate ({cor_MetersHeart})");
-            var cor_MetersColor = Correlation.CalculateSpearman(_lengthList, _colorList);
+            var cor_MetersColor = MathUtil.CalculateSpearmanCorrelation(_lengthList, _colorList);
             Assert.IsTrue(Math.Abs(cor_MetersColor) < 0.25, $"Length and Color should not correlate ({cor_MetersColor})");
 
-            var cor_AgeHeart = Correlation.CalculateSpearman(_ageList, _heartList);
+            var cor_AgeHeart = MathUtil.CalculateSpearmanCorrelation(_ageList, _heartList);
             Assert.IsTrue(cor_AgeHeart < -0.5);
-            var cor_AgeColor = Correlation.CalculateSpearman(_ageList, _colorList);
+            var cor_AgeColor = MathUtil.CalculateSpearmanCorrelation(_ageList, _colorList);
             Assert.IsTrue(Math.Abs(cor_AgeColor) < 0.2, $"Max age and Color should not correlate ({cor_AgeColor})");
 
-            var cor_HeartColor = Correlation.CalculateSpearman(_heartList, _colorList);
+            var cor_HeartColor = MathUtil.CalculateSpearmanCorrelation(_heartList, _colorList);
             Assert.IsTrue(Math.Abs(cor_HeartColor) < 0.15, "heart rate and color should not correlate");
         }
 
         [TestMethod]
         public void CalculateGraphs()
         {
-            var graph = Correlation.CalculateGraphAndTrendLine(_nameList, _ageList, out double slope, out double offset);
-            var cor = Correlation.CalculateSpearman(_nameList, _ageList);
+            var graph = MathUtil.CalculateGraphAndTrendLine(_nameList, _ageList, out double slope, out double offset);
+            var cor = MathUtil.CalculateSpearmanCorrelation(_nameList, _ageList);
 
             const int WIDTH = 1024;
             const int HEIGHT = 1024;
@@ -255,6 +372,7 @@ namespace Test
         }
     }
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     [TestClass]
     public class DependancyEngineTest
     {

@@ -1,7 +1,134 @@
 ﻿namespace woelib
 {
-    public class Correlation
+    public class MathUtil
     {
+        /// <summary>
+        /// Given a set of comparable items, order the set such that all elements before the Nth element are "less than"
+        /// the Nth element, and all elements after the Nth element are greater in value - but unlike sort routines, the
+        /// order of the elements in their sub-sets before and after the Nth position are not sorted.
+        /// 
+        /// This is useful if you need, say, the 5 largest cookies but don't care which order they're in, just that they
+        /// are the 5 largest, and it's important to find them with fewer comparisons than traditional sort algorithms.
+        /// </summary>
+        /// <param name="span">The set of all elements - this set will be re-arranged by the algorthim.</param>
+        /// <param name="nth">The index within the set at which all elements before it will be less than it's value,
+        /// and all elements after it will be greater.</param>
+        /// <param name="comp">The comparison implementation used to determine the ordering of any two elements.</param>
+        public static void NthElement<T>(Span<T> span, int nth, IComparer<T> comp)
+        {
+            if (span.Length < 2)
+                return;
+
+            int pivot = Partition(span, comp);
+            if (pivot == nth)
+                return;
+
+            if (pivot < nth)
+            {
+                Span<T> rightSlice = span.Slice(pivot + 1);
+                NthElement(rightSlice, nth - (pivot + 1), comp);
+            }
+            else // pivot > nth
+            {
+                Span<T> leftSlice = span.Slice(0, pivot);
+                NthElement(leftSlice, nth, comp);
+            }
+        }
+
+        /// <summary>
+        /// Given a set of comparable items, order the set such that all elements before the Nth element are "less than"
+        /// the Nth element, and all elements after the Nth element are greater in value - but unlike sort routines, the
+        /// order of the elements in their sub-sets before and after the Nth position are not sorted.
+        /// 
+        /// This is useful if you need, say, the 5 largest cookies but don't care which order they're in, just that they
+        /// are the 5 largest, and it's important to find them with fewer comparisons than traditional sort algorithms.
+        /// </summary>
+        /// <param name="span">The set of all elements - this set will be re-arranged by the algorthim.</param>
+        /// <param name="nth">The index within the set at which all elements before it will be less than it's value,
+        /// and all elements after it will be greater.</param>
+        public static void NthElement<T>(Span<T> span, int nth) where T : IComparable<T>
+        {
+            if (span.Length < 2)
+                return;
+
+            int pivot = Partition(span);
+            if (pivot == nth)
+                return;
+
+            if (pivot < nth)
+            {
+                Span<T> rightSlice = span.Slice(pivot + 1);
+                NthElement(rightSlice, nth - (pivot + 1));
+            }
+            else // pivot > nth
+            {
+                Span<T> leftSlice = span.Slice(0, pivot);
+                NthElement(leftSlice, nth);
+            }
+        }
+
+        private static int Partition<T>(Span<T> span, IComparer<T> comp)
+        {
+            int i = 0;
+            int j = span.Length - 1;
+            while (i < j)
+            {
+                while (i <= (span.Length - 2) && comp.Compare(span[i], span[0]) <= 0)
+                {
+                    ++i;
+                }
+
+                while (j >= 1 && comp.Compare(span[0], span[j]) <= 0)
+                {
+                    --j;
+                }
+
+                if (i < j)
+                {
+                    T tj = span[j];
+                    span[j] = span[i];
+                    span[i] = tj;
+                }
+            }
+
+            T te = span[0];
+            span[0] = span[j];
+            span[j] = te;
+
+            return j;
+        }
+
+        private static int Partition<T>(Span<T> span) where T : IComparable<T>
+        {
+            int i = 0;
+            int j = span.Length - 1;
+            while (i < j)
+            {
+                while (i <= (span.Length - 2) && span[i].CompareTo(span[0]) <= 0)
+                {
+                    ++i;
+                }
+
+                while (j >= 1 && span[0].CompareTo(span[j]) <= 0)
+                {
+                    --j;
+                }
+
+                if (i < j)
+                {
+                    T tj = span[j];
+                    span[j] = span[i];
+                    span[i] = tj;
+                }
+            }
+
+            T te = span[0];
+            span[0] = span[j];
+            span[j] = te;
+
+            return j;
+        }
+
         /// <summary>
         /// Calculate the Phi correlation between two lists of booleans.
         /// https://en.wikipedia.org/wiki/Phi_coefficient
@@ -10,7 +137,7 @@
         /// <param name="listB">The first set of data which we will correlate against list A.</param>
         /// <param name="coverage">How reliable the correlation is; measured from 0 (some cases not seen) to 1 (all cases seen robustly).</param>
         /// <returns></returns>
-        public static double CalculatePhi(List<bool> listA, List<bool> listB, out double coverage)
+        public static double CalculatePhiCorrelation(List<bool> listA, List<bool> listB, out double coverage)
         {
             if (listA.Count != listB.Count)
                 throw new Exception("Both lists must be of equal length");
@@ -79,7 +206,7 @@
         /// <param name="listA">The first set of data which we will correlate against list B.</param>
         /// <param name="listB">The first set of data which we will correlate against list A.</param>
         /// <returns>How strongly the two values correlate; where 0 means no correlation at all, and 1 is a strong possitive correlation (and -1 is a strong negative correlation).</returns>
-        public static double CalculatePearson(List<double> listA, List<double> listB)
+        public static double CalculatePearsonCorrelation(List<double> listA, List<double> listB)
         {
             if (listA.Count != listB.Count)
                 throw new Exception("Both lists must be of equal length");
@@ -145,7 +272,7 @@
         /// <param name="listB">The first set of data which we will correlate against list A. Note that listB only has to be IComparable against other items in list B, there does not necessarily have to be any comparison between an item on list A and an item on list B.</param>
         /// <returns>How strongly the two values correlate; where 0 means no correlation at all, and 1 is a strong possitive correlation (and -1 is a strong negative correlation).</returns>
         /// <exception cref="Exception"></exception>
-        public static double CalculateSpearman<T,B>(List<T> listA, List<B> listB) where T : IComparable<T> where B : IComparable<B>
+        public static double CalculateSpearmanCorrelation<T,B>(List<T> listA, List<B> listB) where T : IComparable<T> where B : IComparable<B>
         {
             if (listA.Count != listB.Count)
                 throw new Exception("Both lists must be of equal length");
@@ -153,7 +280,7 @@
             if (listA.Count < 2)
                 return double.NaN;
 
-            return CalculatePearson(Rankify(listA), Rankify(listB));
+            return CalculatePearsonCorrelation(Rankify(listA), Rankify(listB));
         }
 
         /// <summary>
