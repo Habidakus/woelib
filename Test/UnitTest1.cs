@@ -1,13 +1,57 @@
-//using System.Diagnostics;
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
-//using System.Runtime.CompilerServices;
 using woelib;
-//using System.Linq;
 
 namespace Test
 {
+    [TestClass]
+    public class ETATest
+    {
+        [TestMethod]
+        public void SimpleTest()
+        {
+            const int goal = 150;
+            const int totalSeconds = 3;
+            AdaptiveETA eta = new(goal);
+            eta.Add(0, DateTime.Now);
+            DateTime plannedFinish = DateTime.Now + TimeSpan.FromSeconds(totalSeconds);
+            double[] values = new double[goal];
+            DateTime[] etas = new DateTime[goal];
+            for (int i = 1; i < goal; ++i)
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(totalSeconds / (double) goal));
+                (values[i], etas[i]) = eta.GetEstimate(DateTime.Now);
+                
+                eta.Add(i, DateTime.Now);
+            }
+            Thread.Sleep(TimeSpan.FromSeconds(totalSeconds / (double)goal));
+            DateTime finish = DateTime.Now;
+
+            int worstEtaIndex = -1;
+            long worstEta = long.MinValue;
+            int worstValueIndex = -1;
+            double worstValue = double.MinValue;
+            for (int i = 7; i<goal; ++i)
+            {
+                double deltaValue = Math.Abs(i - values[i]);
+                if (deltaValue > worstValue) {
+                    worstValue = deltaValue;
+                    worstValueIndex = i;
+                }
+
+                long deltaTime = Math.Abs((finish - etas[i]).Ticks);
+                if (deltaTime > worstEta)
+                {
+                    worstEta = deltaTime;
+                    worstEtaIndex = i;
+                }
+            }
+
+            Assert.IsTrue(worstValue < 0.5, $"Unexpectidly miss estimated value at #{worstValueIndex} of {goal} queries.");
+            Assert.IsTrue(TimeSpan.FromTicks(worstEta).TotalSeconds < 0.5, $"Unexpectidly miss estimated eta at #{worstEtaIndex} of {goal} queries.");
+        }
+    }
+
     [TestClass]
     public class StringUtilTest
     {
