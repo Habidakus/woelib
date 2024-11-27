@@ -22,7 +22,7 @@
             int smallestSpan = -1;
             for (int i = 1; i < 6; ++i)
             {
-                double logOfSpan = Math.Log((_dates[i + 1] - _dates[i - 1]).Ticks);
+                double logOfSpan = Math.Log((_dates[i + 1] - _dates[0]).Ticks) - Math.Log((_dates[i - 1] - _dates[0]).Ticks);
                 if (logOfSpan < smallestSpanLength)
                 {
                     smallestSpan = i;
@@ -30,7 +30,7 @@
                 }
             }
 
-            if (smallestSpanLength < Math.Log((date - _dates[6]).Ticks))
+            if (smallestSpanLength < Math.Log((date - _dates[0]).Ticks) - Math.Log((_dates[6] - _dates[0]).Ticks))
             {
                 return smallestSpan;
             }
