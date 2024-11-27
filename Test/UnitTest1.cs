@@ -20,7 +20,7 @@ namespace Test
             for (int i = 1; i < goal; ++i)
             {
                 Thread.Sleep(TimeSpan.FromSeconds(totalSeconds / (double) goal));
-                (values[i], etas[i]) = eta.GetEstimate(DateTime.Now);
+                (values[i], etas[i], double ratePerSecond) = eta.GetEstimate(DateTime.Now);
                 
                 eta.Add(i, DateTime.Now);
             }

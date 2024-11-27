@@ -1,5 +1,11 @@
 ﻿namespace woelib
 {
+    /// <summary>
+    /// Utility class for estimating when a ongoing incrementing task might finish - this differs from your normal
+    /// ETA estimation which only uses a start and end point to estimate the completion time because it maintains
+    /// an even spread of time samples, and only uses the median rate values for actual estimation, giving a more
+    /// balanced estimation if the sample input is very "lumpy".
+    /// </summary>
     public class AdaptiveETA
     {
         readonly double _goal;
@@ -34,11 +40,22 @@
             }
         }
 
+        /// <summary>
+        /// Set up the object.
+        /// </summary>
+        /// <param name="goal">This is the final value where the task is to be considered completed.</param>
         public AdaptiveETA(double goal)
         {
             _goal = goal;
         }
 
+        /// <summary>
+        /// This function should be called periodically to keep the eta class up to date with the rate at which
+        /// the task is being completed. The first call to this task doesn't have to be zero, it can be any number less
+        /// than the final goal.
+        /// </summary>
+        /// <param name="value">How far the current task has completed.</param>
+        /// <param name="date">The timestamp when the value was taken.</param>
         public void Add(double value, DateTime date)
         {
             if (_acquired < _values.Count())
@@ -64,17 +81,35 @@
             _dates[lastIndex] = date;
         }
 
+        /// <summary>
+        /// This function should be called periodically to keep the eta class up to date with the rate at which
+        /// the task is being completed. The first call to this task doesn't have to be zero, it can be any number less
+        /// than the final goal. This version of the Add() function will associate the DateTime.Now timestamp to the
+        /// sample value.
+        /// </summary>
+        /// <param name="value">How far the current task has completed.</param>
         public void Add(double value)
         {
             Add(value, DateTime.Now);
         }
 
-        public (double currentAmount, DateTime eta) GetEstimate(DateTime date)
+        /// <summary>
+        /// Any time after the first two calls to the Add() function this function might be called to get an estimate
+        /// of when the task will be finished. The call will also return the estimated current amount completed, and
+        /// the rate at which the task is being completed.
+        /// </summary>
+        /// <param name="date">The current time (or any time if you want to forecast into the future)</param>
+        /// <returns>Returns three values:
+        /// currentAmount - the value, relative to the given goal, that the eta object estimates the task to be at.
+        /// eta - when the eta object estimates the task will be completed.
+        /// amountPerSecond - the current estimated rate of completion of the task.
+        /// </returns>
+        public (double currentAmount, DateTime eta, double amountPerSecond) GetEstimate(DateTime date)
         {
             if (_acquired == 0)
-                return (double.NaN, DateTime.MaxValue);
+                return (double.NaN, DateTime.MaxValue, double.NaN);
             if (_acquired == 1)
-                return (_values[0], DateTime.MaxValue);
+                return (_values[0], DateTime.MaxValue, double.NaN);
 
             int lastAcquired = _acquired - 1;
             double workRemaining = _goal - _values[lastAcquired];
@@ -86,25 +121,18 @@
                 double totalSeconds = (_dates[lastAcquired] - _dates[0]).TotalSeconds;
                 if (totalSeconds == 0)
                 {
-                    return (_goal, DateTime.Now);
+                    return (_goal, DateTime.Now, double.NaN);
                 }
 
                 double amountPerSecond = (_values[lastAcquired] - _values[0]) / totalSeconds;
                 if (amountPerSecond == 0)
                 {
-                    return (_values[lastAcquired], DateTime.MaxValue);
+                    return (_values[lastAcquired], DateTime.MaxValue, amountPerSecond);
                 }
 
                 double secondsRemaining = workRemaining / amountPerSecond;
                 double currentAmount = _values[lastAcquired] + (date - _dates[lastAcquired]).TotalSeconds * amountPerSecond;
-                try
-                {
-                    return (currentAmount, _dates[lastAcquired] + TimeSpan.FromSeconds(secondsRemaining));
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.ToString());
-                }
+                return (currentAmount, _dates[lastAcquired] + TimeSpan.FromSeconds(secondsRemaining), amountPerSecond);
             }
 
             int lastIndex = _values.Count() - 1;
@@ -132,7 +160,7 @@
 
                 double secondsRemaining = workRemaining / amountPerSecond;
                 double currentAmount = _values[lastAcquired] + (date - _dates[lastAcquired]).TotalSeconds * amountPerSecond;
-                return (currentAmount, _dates[lastAcquired] + TimeSpan.FromSeconds(secondsRemaining));
+                return (currentAmount, _dates[lastAcquired] + TimeSpan.FromSeconds(secondsRemaining), amountPerSecond);
             }
             else
             {
@@ -150,7 +178,7 @@
                 double amountPerSecond = (subSlice[0] + subSlice[1]) / 2.0;
                 double secondsRemaining = workRemaining / amountPerSecond;
                 double currentAmount = _values[lastAcquired] + (date - _dates[lastAcquired]).TotalSeconds * amountPerSecond;
-                return (currentAmount, _dates[lastAcquired] + TimeSpan.FromSeconds(secondsRemaining));
+                return (currentAmount, _dates[lastAcquired] + TimeSpan.FromSeconds(secondsRemaining), amountPerSecond);
             }
         }
     }
