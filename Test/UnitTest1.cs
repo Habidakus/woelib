@@ -50,6 +50,34 @@ namespace Test
             Assert.IsTrue(worstValue < 0.5, $"Unexpectidly miss estimated value at #{worstValueIndex} of {goal} queries.");
             Assert.IsTrue(TimeSpan.FromTicks(worstEta).TotalSeconds < 0.5, $"Unexpectidly miss estimated eta at #{worstEtaIndex} of {goal} queries.");
         }
+
+        [TestMethod]
+        public void GettingFasterTest()
+        {
+            const double initialSecondsPerImpulse = 60;
+            const double finalSecondsPerImpulse = 0.5;
+            AdaptiveETA eta = new AdaptiveETA(1000);
+            DateTime dateTime = DateTime.Now;
+            eta.Add(0, dateTime);
+            double rate = double.MinValue;
+            DateTime currentEta = DateTime.MaxValue;
+            for (int i = 1; i <= 1000; ++i)
+            {
+                double f = (1000.0 - i) / 1000.0;
+                double secondsThisImpulse = (initialSecondsPerImpulse - finalSecondsPerImpulse) * f + finalSecondsPerImpulse;
+                dateTime = dateTime.AddSeconds(secondsThisImpulse);
+                (double currentAmount, DateTime when, double amountPerSecond) = eta.GetEstimate(dateTime);
+                if (amountPerSecond != rate && !double.IsNaN(currentAmount) && !double.IsNaN(amountPerSecond) && i > 7)
+                {
+                    Assert.IsTrue(amountPerSecond >= rate, $"Our rate should always be faster... why isn't {amountPerSecond} > {rate} ?");
+                    rate = amountPerSecond;
+                    Assert.IsTrue(currentEta >= when);
+                    currentEta = when;
+                }
+
+                eta.Add(i, dateTime);
+            }
+        }
     }
 
     [TestClass]

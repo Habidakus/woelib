@@ -22,7 +22,7 @@
             int smallestSpan = -1;
             for (int i = 1; i < 6; ++i)
             {
-                double logOfSpan = Math.Log((_dates[i + 1] - _dates[0]).Ticks) - Math.Log((_dates[i - 1] - _dates[0]).Ticks);
+                double logOfSpan = Math.Log((date - _dates[i - 1]).Ticks) - Math.Log((date - _dates[i + 1]).Ticks);
                 if (logOfSpan < smallestSpanLength)
                 {
                     smallestSpan = i;
@@ -30,7 +30,8 @@
                 }
             }
 
-            if (smallestSpanLength < Math.Log((date - _dates[0]).Ticks) - Math.Log((_dates[6] - _dates[0]).Ticks))
+            double logDistIfReplaceLastElement = Math.Log((date - _dates[5]).Ticks);
+            if (smallestSpanLength < logDistIfReplaceLastElement)
             {
                 return smallestSpan;
             }
@@ -79,6 +80,8 @@
 
             _values[lastIndex] = value;
             _dates[lastIndex] = date;
+
+            // #TODO: since it isn't going to change until the next time we call Add(), we should calculate amountPerSecond now instead of in GetEstimate()
         }
 
         /// <summary>
