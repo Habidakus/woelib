@@ -13,6 +13,22 @@
         double[] _values = new double[7];
         DateTime[] _dates = new DateTime[7];
 
+        public double Fraction
+        {
+            get
+            {
+                return (_goal == 0) ? 0 : LastEnteredValue / _goal;
+            } 
+        }
+
+        public double LastEnteredValue
+        {
+            get
+            {
+                return _acquired == 0 ? 0 : _values[_acquired - 1];
+            }
+        }
+
         private int GetLeastValuableIndex(DateTime date)
         {
             if (_acquired < 7)
@@ -59,6 +75,17 @@
         /// <param name="date">The timestamp when the value was taken.</param>
         public void Add(double value, DateTime date)
         {
+            // If the value hasn't changed since the last time we got data, just progress the date instead of adding a new value.
+            if (_acquired > 0 && value == _values[_acquired - 1])
+            {
+                if (_acquired != 1)
+                {
+                    _dates[_acquired - 1] = date;
+                }
+
+                return;
+            }
+
             if (_acquired < _values.Count())
             {
                 _values[_acquired] = value;
@@ -163,7 +190,9 @@
 
                 double secondsRemaining = workRemaining / amountPerSecond;
                 double currentAmount = _values[lastAcquired] + (date - _dates[lastAcquired]).TotalSeconds * amountPerSecond;
-                return (currentAmount, _dates[lastAcquired] + TimeSpan.FromSeconds(secondsRemaining), amountPerSecond);
+
+                DateTime eta = double.IsInfinity(secondsRemaining) ? DateTime.MaxValue : _dates[lastAcquired] + TimeSpan.FromSeconds(secondsRemaining);
+                return (currentAmount, eta, amountPerSecond);
             }
             else
             {
@@ -181,7 +210,9 @@
                 double amountPerSecond = (subSlice[0] + subSlice[1]) / 2.0;
                 double secondsRemaining = workRemaining / amountPerSecond;
                 double currentAmount = _values[lastAcquired] + (date - _dates[lastAcquired]).TotalSeconds * amountPerSecond;
-                return (currentAmount, _dates[lastAcquired] + TimeSpan.FromSeconds(secondsRemaining), amountPerSecond);
+
+                DateTime eta = double.IsInfinity(secondsRemaining) ? DateTime.MaxValue : _dates[lastAcquired] + TimeSpan.FromSeconds(secondsRemaining);
+                return (currentAmount, eta, amountPerSecond);
             }
         }
     }
