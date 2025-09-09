@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Numerics;
 using woelib;
 
 namespace Test
@@ -441,6 +442,52 @@ namespace Test
 
             string filename = $"graph.png";
             b.Save(filename.Trim().Replace(' ', '_'), ImageFormat.Png);
+        }
+
+        [TestMethod]
+        public void IntersectingLines()
+        {
+            void TestLine(float asx, float asy, float aex, float aey, float bsx, float bsy, float bex, float bey, bool _intersects)
+            {
+                // These lines are from the graph generated in CalculateGraphs
+                Vector2 a_start = new(asx, asy);
+                Vector2 a_end = new(aex, aey);
+                Vector2 b_start = new(bsx, bsy);
+                Vector2 b_end = new(bex, bey);
+                bool intersects = MathUtil.Do2DLinesIntersect(a_start, a_end, b_start, b_end);
+                Assert.IsTrue(intersects == _intersects);
+
+                Vector2? point = MathUtil.FindIntersectPoint(a_start, a_end, b_start, b_end);
+                if (point.HasValue)
+                {
+                    Assert.IsTrue(intersects);
+                    Console.WriteLine($"Intersect betweeen ({a_start} to {a_end}) and ({b_start} to {b_end}) is {point.Value}");
+                }
+                else
+                {
+                    Assert.IsFalse(intersects);
+                }
+            }
+
+            TestLine(0f, 0f,
+                     1f, 1f,
+                     0f, 1f,
+                     1f, 0f,
+                     true);
+            //TestLine(0f, 0f,
+            //         1f, 1f,
+            //         0f, 0f,
+            //         1f, 1f,
+            //         true);
+            TestLine(0.0f, 0.0f,
+                     0.9990234375f, 0.9990234375f,
+                     0.0f, 0.5737704918032787f,
+                     0.9990234375f, 0.5737704918032787f,
+                     true);
+            TestLine(0f, 0f, 0f, 1f, 1f, 0f, 1f, 1f, false);
+            TestLine(0f, 0f, 0f, 1f, 0f, 0f, 1f, 1f, true);
+            TestLine(0f, 0f, 0f, 1f, 0f, 0.5f, 1f, 0.5f, true);
+            TestLine(0f, 0f, 0f, 1f, 0.00001f, 0.5f, 0.00001f, 0.5f, false);
         }
     }
 

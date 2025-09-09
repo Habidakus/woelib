@@ -1,7 +1,84 @@
-﻿namespace woelib
+﻿using System.Numerics;
+
+namespace woelib
 {
     public class MathUtil
     {
+        const float EPSILON = 0.00000001f;
+
+        /// <summary>
+        /// Given two line segments, find the point at which they intersect, if there is any single point. Note that two colinear lines will return null here.
+        /// </summary>
+        /// <returns>Null if there is no single intersection point, or the point if there is one.</returns>
+        public static Vector2? FindIntersectPoint(Vector2 a_start, Vector2 a_end, Vector2 b_start, Vector2 b_end)
+        {
+            float CrossProduct(Vector2 a, Vector2 b)
+            {
+                return a.X * b.Y - a.Y * b.X;
+            }
+
+            Vector2 a_segment = a_end - a_start;
+            Vector2 b_segment = b_end - b_start;
+            float cross_product = CrossProduct(a_segment, b_segment);
+            if (Math.Abs(cross_product) <= EPSILON)
+                return null;
+
+            Vector2 start_segment = b_start - a_start;
+            float t = CrossProduct(start_segment, b_segment) / cross_product;
+            if (t >= 0 && t <= 1)
+            {
+                float u = CrossProduct(start_segment, a_segment) / cross_product;
+                if (u >= 0 && u <= 1)
+                {
+                    return a_start + t * a_segment;
+                }
+            }
+            
+            return null;
+        }
+
+        /// <summary>
+        /// Given two line segments, determine if they intersect.
+        /// </summary>
+        /// <returns>True if the two lines intersect.</returns>
+        public static bool Do2DLinesIntersect(Vector2 a_start, Vector2 a_end, Vector2 b_start, Vector2 b_end)
+        {
+            bool IsCloseToZero(float val)
+            {
+                return Math.Abs(val) <= EPSILON;
+            }
+
+            float Orientation(Vector2 a, Vector2 b, Vector2 c)
+            {
+                return (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
+            }
+
+            bool OnSegment(Vector2 start, Vector2 point, Vector2 end)
+            {
+                return point.X <= Math.Max(start.X, end.X) && point.X >= Math.Min(start.X, end.X) &&
+                       point.Y <= Math.Max(start.Y, end.Y) && point.Y >= Math.Min(start.Y, end.Y);
+            }
+
+            float o1 = Orientation(a_start, a_end, b_start);
+            float o2 = Orientation(a_start, a_end, b_end);
+            float o3 = Orientation(b_start, b_end, a_start);
+            float o4 = Orientation(b_start, b_end, a_end);
+
+            if (o1 * o2 < 0 && o3 * o4 < 0)
+                return true;
+
+            if (IsCloseToZero(o1) && OnSegment(a_start, b_start, a_end))
+                return true;
+            if (IsCloseToZero(o2) && OnSegment(a_start, b_end, a_end))
+                return true;
+            if (IsCloseToZero(o3) && OnSegment(b_start, a_start, b_end))
+                return true;
+            if (IsCloseToZero(o4) && OnSegment(b_start, a_end, b_end))
+                return true;
+
+            return false;
+        }
+
         /// <summary>
         /// Given a set of comparable items, order the set such that all elements before the Nth element are "less than"
         /// the Nth element, and all elements after the Nth element are greater in value - but unlike sort routines, the
