@@ -5,17 +5,6 @@
     /// 
     /// When using the [NegaMax.Calculator] you should create your own class that derives from this class
     /// and provides it's own implementation of the four functions listed below.
-    /// 
-    /// <example>
-    /// <code>
-    /// class_name MyGameState extends INMGameState
-    /// 
-    /// func apply_action(action : INMAction) -> INMGameState:
-    ///     var ret_val : MyGameState = MyGameState.new()
-    ///     # ... code that applies MyAction to the current game state
-    ///     return ret_val
-    /// </code>
-    /// </example>
     /// </summary>
     public interface INMGameState
     {

@@ -305,8 +305,7 @@ namespace Test
 
             public INMGameState CreateChild(INMAction action)
             {
-                CurrentBoard child = new(this, action);
-                return child;
+                return new CurrentBoard(this, action);
             }
         }
 

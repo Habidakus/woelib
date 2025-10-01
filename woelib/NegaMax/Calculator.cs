@@ -3,13 +3,13 @@
     ///<summary>
     /// An generic alpha beta pruning tree to implement deterministic best move calculations.
     ///
-    /// Every time you wish to have the artificial opponent take a turn, you'll need to supply the MinMaxCalculator's
-    /// get_best_action() function with a representation of the current game state. To do this first create an extension
-    /// of the [MMCGameState] class which can hold within it a flyweight representation of the current state of the
+    /// Every time you wish to have the artificial opponent take a turn, you'll need to supply the [method Calculator.GetBestAction]
+    /// function with a representation of the current game state. To do this first create an extension
+    /// of the [INMGameState] interface which can hold within it a flyweight representation of the current state of the
     /// game - your class will need to implement your own version of the three base functions of that class;
-    /// apply_action(), get_moves(), and get_score(). Next you'll need to extend both the [MMCAction] and [MMCScore]
-    /// classes. Once you have all three, you will be able to ask the MinMaxCalculator for an optimal move for the
-    /// artificial opponent to take.
+    /// [method INMGameState.Score], [method INMGameState.SortedMoves], and [method INMGameState.CreateChild].
+    /// Next you'll need to implement the [INMAction] interface and extend the [NMScore] class. Once you have all three,
+    /// you will be able to ask the [method Calculator.GetBestAction] for an optimal move for the artificial opponent to take.
     ///
     /// This class is an implementation of https://en.wikipedia.org/wiki/Negamax
     ///</summary>
