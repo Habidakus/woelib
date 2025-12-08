@@ -1,4 +1,6 @@
 
+using woelib.NegaMax;
+
 namespace Test
 {
     [TestClass]
@@ -10,21 +12,25 @@ namespace Test
         {
             NMNode johnWin = new(1);
             Assert.IsTrue(johnWin.IsTerminal);
-            Assert.IsTrue(johnWin.Score.Value == 1.0);
-            Assert.IsTrue(NMScore.GreaterThan(johnWin.Score, johnWin.Score.Reversed));
+            Assert.IsTrue(johnWin.Value == 1.0);
+            JohnScore johnScore = new(johnWin);
+            Assert.IsTrue(NMScore.GreaterThan(johnScore, johnScore.Reversed));
 
             NMNode donWin = new(-1);
             Assert.IsTrue(donWin.IsTerminal);
-            Assert.IsTrue(donWin.Score.Value == -1.0);
-            Assert.IsTrue(NMScore.GreaterThan(donWin.Score.Reversed, donWin.Score));
+            Assert.IsTrue(donWin.Value == -1.0);
+            DonScore donScore = new(donWin);
+            Assert.IsTrue(NMScore.GreaterThan(donScore, donScore.Reversed));
 
-            CurrentBoard johnBoard = new(Turn.John, johnWin);
-            Assert.IsTrue(johnBoard.Won(Turn.John));
-            Assert.IsFalse(johnBoard.Won(Turn.Don));
+            JohnsGameState johnBoard = new(Turn.John, johnWin);
+            Assert.IsTrue(johnBoard.Won());
+            DonsGameState donsBoard = new(Turn.John, johnWin);
+            Assert.IsFalse(donsBoard.Won());
 
-            CurrentBoard donBoard = new(Turn.Don, donWin);
-            Assert.IsTrue(donBoard.Won(Turn.Don));
-            Assert.IsFalse(donBoard.Won(Turn.John));
+            johnBoard = new(Turn.Don, donWin);
+            Assert.IsFalse(johnBoard.Won());
+            donsBoard = new(Turn.Don, donWin);
+            Assert.IsTrue(donsBoard.Won());
         }
 
         [TestMethod]
@@ -41,12 +47,14 @@ namespace Test
                     int lost = 0;
                     for (int seed = 0; seed < 5000; ++seed)
                     {
-                        if (RunCalculations(johnMoves, donMoves, 10 + seed))
-                        {
-                            win += 1;
-                        }
+                        int status = RunCalculations(johnMoves, donMoves, 10 + seed);
+                        if (status > 0)
+                            win += status;
+                        else if (status < 0)
+                            lost -= status;
                         else
                         {
+                            win += 1;
                             lost += 1;
                         }
                     }
@@ -81,95 +89,41 @@ namespace Test
         //    RunCalculations(johnMoves: 7, donMoves: 7);
         //}
 
-        public enum NMAction { left, right };
-
-        public class NMScore
+        public class NMAction : INMAction
         {
-            private enum ValueType
-            {
-                Regular,
-                Sentinel_Min,
-                Sentinel_Max,
-            }
-            private ValueType _type { get; }
-
-
-            public override string ToString()
-            {
-                return $"<score={_type}/>";
-            }
-
-            protected virtual NMScore CreateReverse()
-            {
-                throw new NotImplementedException("You must extend NMScore and implement CreateReverse()");
-            }
-            protected virtual bool IsGreaterThan(NMScore other)
-            {
-                throw new NotImplementedException("You must extend NMScore and implement IsGreaterThan()");
-            }
-
-            public NMScore Reversed
+            private static NMAction? _left;
+            private static NMAction? _right;
+            internal static NMAction Left
             {
                 get
                 {
-                    if (_type == ValueType.Sentinel_Min)
-                        return MaxValue;
-                    else if (_type == ValueType.Sentinel_Max)
-                        return MinValue;
-                    else
-                        return CreateReverse();
+                    if (_left == null)
+                        _left = new NMAction();
+                    return _left;
                 }
             }
-
-            private static NMScore _minValue = new(ValueType.Sentinel_Min);
-            public static NMScore MinValue => _minValue;
-            private static NMScore _maxValue = new(ValueType.Sentinel_Max);
-            public static NMScore MaxValue => _maxValue;
-
-            protected NMScore()
+            internal static NMAction Right
             {
-                _type = ValueType.Regular;
-            }
-            private NMScore(ValueType type)
-            {
-                _type = type;
-            }
-
-            internal static bool GreaterThan(NMScore left, NMScore right)
-            {
-                if (left._type == ValueType.Regular && right._type == ValueType.Regular)
-                    return left.IsGreaterThan(right);
-                else if (left._type == right._type)
-                    return false;
-                else if (left._type == ValueType.Sentinel_Min || right._type == ValueType.Sentinel_Max)
-                    return false;
-                else if (left._type == ValueType.Sentinel_Max || right._type == ValueType.Sentinel_Min)
-                    return true;
-                else
-                    return false;
-            }
-
-            internal static NMScore Max(NMScore alpha, NMScore bestScore)
-            {
-                if (GreaterThan(alpha, bestScore))
-                    return alpha;
-                else
-                    return bestScore;
-            }
-
-            internal static bool GreaterOrEqualTo(NMScore alpha, NMScore beta)
-            {
-                return GreaterThan(alpha, beta) || !GreaterThan(beta, alpha);
+                get
+                {
+                    if (_right == null)
+                        _right = new NMAction();
+                    return _right;
+                }
             }
         }
 
-        public class NodeScore : NMScore
+        public class JohnScore : NMScore
         {
             internal double Value { get; }
 
-            internal NodeScore(double value)
+            private JohnScore(double value)
             {
                 Value = value;
+            }
+            public JohnScore(NMNode node)
+            {
+                Value = node.Value;
             }
 
             public override string ToString()
@@ -184,14 +138,56 @@ namespace Test
 
             protected override NMScore CreateReverse()
             {
-                return new NodeScore(0.0 - Value);
+                return new JohnScore(0.0 - Value);
             }
 
             protected override bool IsGreaterThan(NMScore other)
             {
-                if (other is NodeScore nscore)
+                if (other is JohnScore nscore)
                 {
                     return Value > nscore.Value;
+                }
+                else
+                {
+                    throw new Exception($"Bad IsGreaterThan({other}) argument");
+                }
+            }
+        }
+
+        public class DonScore : NMScore
+        {
+            internal double Value { get; }
+
+            public DonScore(NMNode node)
+            {
+                Value = node.Value;
+            }
+
+            private DonScore(double value)
+            {
+                Value = value;
+            }
+
+            public override string ToString()
+            {
+                if (Value == -1)
+                    return "Don Won";
+                else if (Value == 1)
+                    return "Don Lost";
+                else
+                    return $"{Value}";
+            }
+
+            protected override NMScore CreateReverse()
+            {
+                return new DonScore(0.0 - Value);
+            }
+
+            protected override bool IsGreaterThan(NMScore other)
+            {
+                if (other is DonScore nscore)
+                {
+                    return Value < nscore.Value;
                 }
                 else
                 {
@@ -203,13 +199,6 @@ namespace Test
         public class NMNode
         {
             public float Value { get; }
-            public NodeScore Score { get { return new NodeScore(Value); } }
-
-            //internal NodeScore GetScore(Turn turn)
-            //{
-            //    return new NodeScore(turn == Turn.John ? Value : 0.0 - Value);
-            //}
-
             public bool IsTerminal { get { return Value == -1 || Value == 1; } }
             private NMNode? _left { get; }
             public NMNode Left { get { Assert.IsNotNull(_left); return _left; } }
@@ -217,9 +206,9 @@ namespace Test
             public NMNode Right { get { Assert.IsNotNull(_right); return _right; } }
             public bool HasChildren { get { return _left != null; } }
 
-            public NMNode GetChild(NMAction action)
+            public NMNode GetChild(INMAction action)
             {
-                if (action == NMAction.left)
+                if (action == NMAction.Left)
                 {
                     Assert.IsNotNull(_left); return _left;
                 }
@@ -273,7 +262,7 @@ namespace Test
             }
         }
 
-        public class CurrentBoard
+        public class JohnsGameState : INMCurrentBoard
         {
             public Turn Turn { get; }
             public NMNode Node { get; }
@@ -292,51 +281,56 @@ namespace Test
 
             public bool HasMoves { get { return Node.HasChildren; } }
 
-            public CurrentBoard(Random rnd, int depth)
+            public JohnsGameState(Random rnd, int depth)
             {
                 Node = NMNode.CreateTree(rnd, depth);
             }
 
-            internal CurrentBoard(Turn turn, NMNode node)
+            internal JohnsGameState(Turn turn, NMNode node)
             {
                 Turn = turn;
                 Node = node;
             }
 
-            private CurrentBoard(CurrentBoard parent, NMAction action)
+            internal JohnsGameState(JohnsGameState parent, INMAction action)
             {
                 Turn = (parent.Turn == Turn.Don) ? Turn.John : Turn.Don;
                 Node = parent.Node.GetChild(action);
             }
 
-            public bool Won(Turn who)
+            internal JohnsGameState(DonsGameState parent, INMAction action)
             {
-                Assert.IsTrue(Node.IsTerminal);
-                double value = Node.Score.Value;
-                return value == ((who == Turn.John) ? 1 : -1);
+                Turn = (parent.Turn == Turn.Don) ? Turn.John : Turn.Don;
+                Node = parent.Node.GetChild(action);
             }
 
-            public NMScore Score { get { return Node.Score; } }
+            public bool Won()
+            {
+                Assert.IsTrue(Node.IsTerminal);
+                return (Node.Value == 1);
+            }
 
-            public IEnumerable<NMAction> SortedMoves 
+            public NMScore Score { get { return new JohnScore(Node); } }
+
+            public IEnumerable<INMAction> SortedMoves
             {
                 get
                 {
                     if (HasMoves)
                     {
                         bool johnsTurn = Turn == Turn.John;
-                        NMScore leftScore = Node.Left.Score;
-                        NMScore rightScore = Node.Right.Score;
+                        NMScore leftScore = new JohnScore(Node.Left);
+                        NMScore rightScore = new JohnScore(Node.Right);
                         bool leftIsHigher = NMScore.GreaterThan(leftScore, rightScore);
                         if (leftIsHigher == johnsTurn)
                         {
-                            yield return NMAction.left;
-                            yield return NMAction.right;
+                            yield return NMAction.Left;
+                            yield return NMAction.Right;
                         }
                         else
                         {
-                            yield return NMAction.right;
-                            yield return NMAction.left;
+                            yield return NMAction.Right;
+                            yield return NMAction.Left;
                         }
                     }
 
@@ -344,97 +338,164 @@ namespace Test
                 }
             }
 
-            internal CurrentBoard CreateChild(NMAction action)
+            public INMCurrentBoard CreateChild(INMAction action)
             {
-                return new(this, action);
+                return new JohnsGameState(this, action);
+            }
+
+            public INMCurrentBoard CreateOpponentsBoard(INMAction action)
+            {
+                return new DonsGameState(this, action);
             }
         }
 
-        private (NMScore score, NMAction? action) negamax(CurrentBoard board, int depth, NMScore alpha, NMScore beta, int color)
+        public class DonsGameState : INMCurrentBoard
         {
-            // if depth = 0 or node is a terminal node then
-            //     return color * the heuristic value of node
-            if (depth == 0 || !board.HasMoves)
+            public Turn Turn { get; }
+            public NMNode Node { get; }
+
+            public override string ToString()
             {
-                if (color > 0)
-                    return (board.Score, null);
+                if (HasMoves)
+                {
+                    return $"Working Score: {Score}";
+                }
                 else
-                    return (board.Score.Reversed, null);
+                {
+                    return $"Final Score: {Score}";
+                }
             }
 
-            // value := -infinity
-            NMScore bestScore = NMScore.MinValue;
-            NMAction? bestAction = null;
+            public bool HasMoves { get { return Node.HasChildren; } }
 
-            bool debugOut = false; // board.OnlyPlayedCardIs(2, 3);
-
-            // childNodes := generateMoves(node)
-            // childNodes := orderMoves(childNodes)
-            // foreach child in childNodes do
-            foreach (NMAction action in board.SortedMoves)
+            public DonsGameState(Random rnd, int depth)
             {
-                var child = board.CreateChild(action);
+                Node = NMNode.CreateTree(rnd, depth);
+            }
 
-                // value := max(value, -negamax(child, depth - 1, -beta, -alpha, -color))
-                var childResult = negamax(child, depth - 1, beta.Reversed, alpha.Reversed, 0 - color);
-                NMScore reversedScore = childResult.score.Reversed;
-                if (debugOut)
-                {
-                    if (bestAction != null)
-                        Console.WriteLine($"    Considering {action} => {reversedScore} (best: {bestScore},  bestAction: {bestAction},  alpha: {alpha},  beta: {beta})");
-                    else
-                        Console.WriteLine($"    Considering {action} => {reversedScore} (alpha: {alpha},  beta: {beta})");
-                }
-                if (bestAction == null || NMScore.GreaterThan(reversedScore, bestScore))
-                {
-                    bestScore = reversedScore;
-                    bestAction = action;
-                }
+            internal DonsGameState(Turn turn, NMNode node)
+            {
+                Turn = turn;
+                Node = node;
+            }
 
-                // alpha := max(alpha, value)
-                alpha = NMScore.Max(alpha, bestScore);
+            internal DonsGameState(DonsGameState parent, INMAction action)
+            {
+                Turn = (parent.Turn == Turn.Don) ? Turn.John : Turn.Don;
+                Node = parent.Node.GetChild(action);
+            }
 
-                // if alpha >= beta then
-                //     break (* cut-off *)
-                if (NMScore.GreaterOrEqualTo(alpha, beta))
+            internal DonsGameState(JohnsGameState parent, INMAction action)
+            {
+                Turn = (parent.Turn == Turn.Don) ? Turn.John : Turn.Don;
+                Node = parent.Node.GetChild(action);
+            }
+
+            public bool Won()
+            {
+                Assert.IsTrue(Node.IsTerminal);
+                return (Node.Value == -1);
+            }
+
+            public NMScore Score { get { return new DonScore(Node); } }
+
+            public IEnumerable<INMAction> SortedMoves 
+            {
+                get
                 {
-                    if (debugOut)
+                    if (HasMoves)
                     {
-                        Console.WriteLine($"    Pruning remaining moves ({alpha} >= {beta})");
+                        bool johnsTurn = Turn == Turn.John;
+                        NMScore leftScore = new DonScore(Node.Left);
+                        NMScore rightScore = new DonScore(Node.Right);
+                        bool leftIsHigher = NMScore.GreaterThan(leftScore, rightScore);
+                        if (leftIsHigher == johnsTurn)
+                        {
+                            yield return NMAction.Left;
+                            yield return NMAction.Right;
+                        }
+                        else
+                        {
+                            yield return NMAction.Right;
+                            yield return NMAction.Left;
+                        }
                     }
-                    break;
+
+                    yield break;
                 }
             }
 
-            return (bestScore, bestAction);
+            public INMCurrentBoard CreateChild(INMAction action)
+            {
+                return new DonsGameState(this, action);
+            }
+
+            public INMCurrentBoard CreateOpponentsBoard(INMAction action)
+            {
+                return new JohnsGameState(this, action);
+            }
         }
 
-        private bool RunCalculations(int johnMoves, int donMoves, int seed)
+        private int RunCalculations(int johnMoves, int donMoves, int seed)
         {
             Random rnd = new Random(seed);
             const int boardDepth = 10;
-            CurrentBoard board = new(rnd, boardDepth);
-            int color = 1;
-            while (board.HasMoves)
+            INMCurrentBoard[] boards = [new JohnsGameState(rnd, boardDepth), new DonsGameState(rnd, boardDepth)];
+            int wins = 0;
+            foreach (INMCurrentBoard turnBoard in boards)
             {
-                int depth = color > 0 ? johnMoves : donMoves;
-                (NMScore score, NMAction? action) = negamax(board, depth, NMScore.MinValue, NMScore.MaxValue, color);
-                if (action != null)
+                INMCurrentBoard board = turnBoard;
+                while (board.HasMoves)
                 {
-                    string player = color > 0 ? "John" : "Don";
-                    board = board.CreateChild(action.Value);
-                    //Console.WriteLine($"{player} plays {action} => {board}");
-                    color *= -1;
+                    int moves = 0;
+                    if (board is JohnsGameState)
+                    {
+                        moves = johnMoves;
+                    }
+                    else if (board is DonsGameState)
+                    {
+                        moves = donMoves;
+                    }
+                    
+                    (NMScore score, INMAction? action) = NMCalculator.Calculate(board, moves);
+                    if (action != null)
+                    {
+                        if (board is JohnsGameState jgs)
+                        {
+                            board = jgs.CreateOpponentsBoard(action);
+                        }
+                        else if (board is DonsGameState dgs)
+                        {
+                            board = dgs.CreateOpponentsBoard(action);
+                        }
+                        else
+                        {
+                            throw new Exception("Bade board type");
+                        }
+                    }
+                    else
+                    {
+                        Assert.IsNotNull(action);
+                        return 0;
+                    }
+                }
+
+                //Console.WriteLine($"John: {johnMoves}  Don: {donMoves}  Board: {board}");
+                if (board is JohnsGameState jgsa)
+                {
+                    wins += jgsa.Won() ? 1 : -1;
+                }
+                else if (board is DonsGameState dgsa)
+                {
+                    wins += dgsa.Won() ? -1 : 1;
                 }
                 else
                 {
-                    Assert.IsNotNull(action);
-                    return false;
+                    throw new Exception("Bade board type");
                 }
             }
 
-            //Console.WriteLine($"John: {johnMoves}  Don: {donMoves}  Board: {board}");
-            return board.Won(Turn.John);
+            return wins;
         }
     }
 }
