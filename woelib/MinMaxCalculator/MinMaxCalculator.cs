@@ -40,6 +40,143 @@
             }
         }
 
+        public interface IMMCRequest
+        {
+            public IMMCGameState GameState { get; }
+            /// <summary>
+            /// The remaining actions to be considered
+            /// </summary>
+            public IMMCAction[] SortedRemainingActions { get; }
+            public IMMCScore LowerBound { get; }
+            public IMMCScore UpperBound { get; }
+            public Int32 Depth { get; }
+            public MMCDebug? Debug { get; }
+
+            internal IMMCRequest CreateChild(IMMCGameState iMMCGameState, IMMCScore lowerBound);
+        }
+
+        public class IMMCRequest_Basic : IMMCRequest
+        {
+            public IMMCRequest_Basic(IMMCGameState gameState, Int32 depth = Int32.MaxValue, MMCDebug? debug = null)
+            {
+                this.GameState = gameState;
+                this.LowerBound = IMMCScore.Lowest;
+                this.UpperBound = IMMCScore.Highest;
+                this.Depth = depth;
+                this.Debug = debug;
+            }
+
+            private IMMCRequest_Basic(IMMCGameState gameState, IMMCRequest parent, IMMCScore upperBound)
+            {
+                this.GameState = gameState;
+                this.LowerBound = parent.UpperBound;
+                this.UpperBound = upperBound;
+                this.Depth = parent.Depth - 1;
+                this.Debug = parent.Debug;
+            }
+
+            public IMMCGameState GameState { get; }
+
+            public IMMCScore LowerBound { get; }
+
+            public IMMCScore UpperBound { get; }
+
+            public int Depth { get; }
+
+            public MMCDebug? Debug { get; }
+
+            public IMMCAction[] SortedRemainingActions {
+                get { return GameState.SortedMoves; }
+            }
+
+            IMMCRequest IMMCRequest.CreateChild(IMMCGameState childGameState, IMMCScore lowerBound)
+            {
+                return new IMMCRequest_Basic(childGameState, this, lowerBound);
+            }
+        }
+
+        public class IMMCResponse
+        {
+            public IMMCAction? BestAction { get; }
+            public IMMCScore Score { get; }
+
+            private IMMCResponse(IMMCAction? action, IMMCScore score)
+            {
+                BestAction = action;
+                Score = score;
+            }
+
+            private IMMCResponse()
+            { }
+
+            internal static IMMCResponse CreateScoreResponse(IMMCScore score) { return new(null, score); }
+            internal static IMMCResponse CreateFullResponse(IMMCAction action, IMMCScore score) { return new(action, score); }
+            internal static IMMCResponse CreateEmptyResponse() { return new(); }
+        }
+
+        public static IMMCAction? GetBestAction(IMMCRequest request)
+        {
+            IMMCResponse response = GetBestAction_Internal(request);
+            return response.BestAction;
+        }
+
+        private static IMMCResponse GetBestAction_Internal(IMMCRequest request)
+        {
+            if (request.Depth == 0)
+            {
+                request.Debug?.AddActions(request.GameState, Array.Empty<IMMCAction>());
+
+                // Action is a terminal (leaf) action, so there are no counters to it
+                return IMMCResponse.CreateScoreResponse(request.GameState.Score);
+            }
+
+            IMMCAction[] actions = request.SortedRemainingActions;
+            request.Debug?.AddActions(request.GameState, actions);
+            if (actions.Any() == false)
+            {
+                // Action is a terminal (leaf) action, so there are no counters to it
+                return IMMCResponse.CreateScoreResponse(request.GameState.Score);
+            }
+
+            var lowerBound = request.LowerBound;
+            IMMCResponse? best = null;
+            foreach (IMMCAction action in actions)
+            {
+                IMMCRequest postActionRequest = request.CreateChild(request.GameState.ApplyAction(action), lowerBound);
+                IMMCResponse response = GetBestAction_Internal(postActionRequest);
+                request.Debug?.AddResult(request.GameState, action, postActionRequest.GameState, response.Score);
+
+                if (best == null)
+                {
+                    best = IMMCResponse.CreateFullResponse(action, response.Score);
+                }
+                else if (IMMCScore.IsLeftGreaterThanRight(request.GameState.Player, response.Score, best.Score))
+                {
+                    best = IMMCResponse.CreateFullResponse(action, response.Score);
+                }
+
+                if (IMMCScore.IsLeftGreaterThanRight(request.GameState.Player, best.Score, lowerBound))
+                {
+                    lowerBound = response.Score;
+                }
+
+                // #TODO: Check this?
+                if (IMMCScore.IsLeftGreaterThanRight(request.GameState.Player, lowerBound, request.UpperBound))
+                {
+                    return best;
+                }
+            }
+
+            if (best != null)
+            {
+                return best;
+            }
+            else
+            {
+                return IMMCResponse.CreateEmptyResponse();
+            }
+        }
+
         private static MMCResult? GetBestAction_Internal(IMMCGameState gameState, IMMCScore lowerBound, IMMCScore upperBound, Int32 depth, MMCDebug? debug)
         {
             if (depth == 0)
