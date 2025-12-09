@@ -34,7 +34,7 @@ namespace Test
         {
             Dictionary<Tuple<int, int>, int> johnWinTracker = new();
             const int advance = 1;
-            const int moves = 6;
+            const int moves = 8;
 
             for (int johnMoves = 1; johnMoves < moves; johnMoves += advance)
             {
@@ -42,16 +42,11 @@ namespace Test
                 {
                     int win = 0;
                     int lost = 0;
-                    for (int seed = 0; seed < 5000; ++seed)
+                    for (int seed = 0; seed < 12000; ++seed)
                     {
-                        if (RunCalculations(johnMoves, donMoves, 10 + seed))
-                        {
-                            win += 1;
-                        }
-                        else
-                        {
-                            lost += 1;
-                        }
+                        int johnWins = RunCalculations(johnMoves, donMoves, 2000 + seed);
+                        win += johnWins;
+                        lost += (2 - johnWins);
                     }
 
                     johnWinTracker[new Tuple<int, int>(johnMoves, donMoves)] = win;
@@ -309,46 +304,91 @@ namespace Test
             }
         }
 
-        private bool RunCalculations(int johnMoves, int donMoves, int seed)
+        private int RunCalculations(int johnMoves, int donMoves, int seed)
         {
-            Random rnd = new Random(seed);
+            int johnWins = 0;
             const int boardDepth = 10;
-            CurrentBoard johnGameState = new CurrentBoard(rnd, boardDepth);
-            CurrentBoard donGameState = new CurrentBoard(johnGameState);
-            bool isJohnsTurn = true;
-            while (johnGameState.HasMoves)
+            foreach (bool johnGoesFirst in new bool[] { true, false })
             {
-                INMAction? action = null;
-                if ( isJohnsTurn)
+                Random rnd = new Random(seed);
+                CurrentBoard johnGameState = new CurrentBoard(rnd, boardDepth);
+                CurrentBoard donGameState = new CurrentBoard(johnGameState);
+                bool isJohnsTurn = johnGoesFirst;
+                while (johnGameState.HasMoves)
                 {
-                    action = Calculator.GetBestAction(johnGameState, johnMoves);
+                    INMAction? action = null;
+                    Request? request = null;
+                    if (isJohnsTurn)
+                    {
+                        request = new(johnGameState, johnMoves); //, TimeSpan.FromSeconds(0.00002));
+                    }
+                    else
+                    {
+                        request = new(donGameState, donMoves); //, TimeSpan.FromSeconds(0.00002));
+                    }
+
+                    IResponse? response = null;
+                    while (request != null)
+                    {
+                        response = Calculator.GetBestAction(request);
+                        if (response is PausedResponse pr)
+                        {
+                            request = pr.ContinuationRequest;
+                        }
+                        else if (response is ResolvedResponse rr)
+                        {
+                            request = null;
+                            action = rr.Action;
+                        }
+                        else
+                        {
+                            throw new Exception($"Bad response type: {response}");
+                        }
+                    }
+
+                    if (action != null)
+                    {
+                        INMGameState childJohnGameState = johnGameState.CreateChild(action);
+                        if (childJohnGameState is CurrentBoard jcb)
+                        {
+                            johnGameState = jcb;
+                        }
+                        else
+                        {
+                            throw new Exception($"Bad board type: {childJohnGameState}");
+                        }
+
+                        var childDonGameState = donGameState.CreateChild(action);
+                        if (childDonGameState is CurrentBoard dcb)
+                        {
+                            donGameState = dcb;
+                        }
+                        else
+                        {
+                            throw new Exception($"Bad board type: {childDonGameState}");
+                        }
+
+                        isJohnsTurn = !isJohnsTurn;
+                    }
+                    else
+                    {
+                        Assert.IsNotNull(action);
+                        return 0;
+                    }
+                }
+
+                if (johnGameState is CurrentBoard currentBoard)
+                {
+                    if (currentBoard.Won(Turn.JohnsTurn))
+                        johnWins += 1;
                 }
                 else
                 {
-                    action = Calculator.GetBestAction(donGameState, donMoves);
-                }
-
-                if (action != null)
-                {
-                    johnGameState = johnGameState.CreateChild(action) as CurrentBoard;
-                    donGameState = donGameState.CreateChild(action) as CurrentBoard;
-                    isJohnsTurn = !isJohnsTurn;
-                }
-                else
-                {
-                    Assert.IsNotNull(action);
-                    return false;
+                    throw new Exception("Bad board type");
                 }
             }
 
-            if (johnGameState is CurrentBoard currentBoard)
-            {
-                return currentBoard.Won(Turn.JohnsTurn);
-            }
-            else
-            {
-                throw new Exception("Bad board type");
-            }
+            return johnWins;
         }
     }
 }

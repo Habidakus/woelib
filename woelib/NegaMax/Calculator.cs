@@ -1,4 +1,6 @@
-﻿namespace woelib.NegaMax
+﻿using System.Drawing;
+
+namespace woelib.NegaMax
 {
     ///<summary>
     /// An generic alpha beta pruning tree to implement deterministic best move calculations.
@@ -25,6 +27,46 @@
         public static INMAction? GetBestAction(INMGameState gameState, Int32 depth = Int32.MaxValue)
         {
             return GetBestAction_Internal(gameState, depth, NMScore.MinValue, NMScore.MaxValue, color: 1).action;
+        }
+
+        public static IResponse GetBestAction(Request request)
+        {
+            if (request.Depth == 0 || !request.GameState.HasMoves)
+            {
+                return request.ExaustResponse;
+            }
+
+            NMScore bestScore = request.InitialBestScore;
+            INMAction? bestAction = request.InitialBestAction;
+            INMAction[] actions = request.SortedActions;
+            for (int index = 0; index < actions.Count(); ++index)
+            {
+                if (DateTime.Now >= request.ExpirationTime)
+                {
+                    return request.CreatePauseResponse(bestAction, bestScore, index / (float)actions.Count(), actions.AsSpan(index));
+                }
+
+                Request childRequest = request.CreateChild(index == 0, actions[index]);
+                IResponse childResponse = GetBestAction(childRequest);
+                if (childResponse is PausedResponse pr)
+                {
+                    return request.CreatePauseResponse(bestAction, bestScore, index / (float)actions.Count(), actions.AsSpan(index), pr);
+                }
+
+                NMScore reversedScore = (childResponse as ResolvedResponse)!.Score.Reversed;
+                if (bestAction == null || NMScore.GreaterThan(reversedScore, bestScore))
+                {
+                    bestScore = reversedScore;
+                    bestAction = actions[index];
+                }
+
+                if (request.UpdateAlphaAndCheck(bestScore))
+                {
+                    break;
+                }
+            }
+
+            return new ResolvedResponse(bestAction, bestScore);
         }
 
         private static (NMScore score, INMAction? action) GetBestAction_Internal(INMGameState board, int depth, NMScore alpha, NMScore beta, int color)
