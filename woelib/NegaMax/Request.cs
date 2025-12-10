@@ -18,6 +18,9 @@ namespace woelib.NegaMax
         }
         private TurnColorEnum TurnColor { get; }
 
+        /// <summary>
+        /// Passing this object to the <see cref="Calculator.GetBestAction"/> method will cause the engine to consult a <see cref="depth"/> deep alpha-beta pruning tree to determine the optimal next move from the given <see cref="INMGameState"/>.
+        /// </summary>
         public Request(INMGameState gameState, Int32 depth = Int32.MaxValue)
         {
             GameState = gameState;
@@ -27,6 +30,19 @@ namespace woelib.NegaMax
             TurnColor = TurnColorEnum.Invoker;
         }
 
+        /// <summary>
+        /// Passing this object to the <see cref="Calculator.GetBestAction"/> method will cause the engine to
+        /// begin consulting an alpha-beta pruning tree to determine the optimal next move
+        /// from the given <see cref="INMGameState"/>.
+        /// </summary>
+        /// <param name="depth">
+        /// How many moves ahead the engine should consider when calculating the best move.
+        /// </param>
+        /// <param name="timeout">
+        /// Limit the amount of time the engine is allowed to spend calculating the best move. If the timeout
+        /// is reached before the calculation is complete, a <see cref="PausedResponse"/> will be returned which can be
+        /// used to resume the calculation later.
+        /// </param>
         public Request(INMGameState gameState, Int32 depth, TimeSpan timeout)
         {
             GameState = gameState;

@@ -1,11 +1,11 @@
 ﻿namespace woelib.NegaMax
 {
     /// <summary>
-    /// Representation of worth that any given [INMAction] to the computer player (the [method CreateReverse]
+    /// Representation of worth that any given <see cref="INMAction"/> to the computer player (the <see cref="CreateReverse"/>
     /// function will always return the value of any action from the point of view of the human opponent).
     /// 
-    /// You must provide a derived class that extends [NMScore] and your own implementation of the
-    /// [method CreateReverse] and [method IsGreaterThan] functions.
+    /// You must provide a derived class that extends <see cref="NMScore"/> and your own implementation of the
+    /// <see cref="CreateReverse"/> and <see cref="IsGreaterThan"/> functions.
     /// </summary>
     public class NMScore
     {
@@ -23,8 +23,8 @@
         }
 
         /// <summary>
-        /// Return the inverse of the current score.If the score is being kept in a simple numeric value, this
-        /// can be as simple a returning [score] * -1.  However if the score is more complex you might need to
+        /// Return the inverse of the current score. If the score is being kept in a simple numeric value, this
+        /// can be as simple a returning score * -1. However if the score is more complex you might need to
         /// provide more extensive logic here.
         /// </summary>
         protected virtual NMScore CreateReverse()

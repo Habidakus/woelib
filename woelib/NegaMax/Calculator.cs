@@ -5,13 +5,13 @@ namespace woelib.NegaMax
     ///<summary>
     /// An generic alpha beta pruning tree to implement deterministic best move calculations.
     ///
-    /// Every time you wish to have the artificial opponent take a turn, you'll need to supply the [method Calculator.GetBestAction]
+    /// Every time you wish to have the artificial opponent take a turn, you'll need to supply the <see cref="Calculator.GetBestAction"/>
     /// function with a representation of the current game state. To do this first create an extension
-    /// of the [INMGameState] interface which can hold within it a flyweight representation of the current state of the
+    /// of the <see cref="INMGameState"/> interface which can hold within it a flyweight representation of the current state of the
     /// game - your class will need to implement your own version of the three base functions of that class;
-    /// [method INMGameState.Score], [method INMGameState.SortedMoves], and [method INMGameState.CreateChild].
-    /// Next you'll need to implement the [INMAction] interface and extend the [NMScore] class. Once you have all three,
-    /// you will be able to ask the [method Calculator.GetBestAction] for an optimal move for the artificial opponent to take.
+    /// <see cref="INMGameState.Score"/>, <see cref="INMGameState.SortedMoves"/>, and <see cref="INMGameState.CreateChild"/>.
+    /// Next you'll need to implement the <see cref="INMAction"/> interface and extend the <see cref="NMScore"/> class. Once you have all three,
+    /// you will be able to ask the <see cref="Calculator.GetBestAction"/> for an optimal move for the artificial opponent to take.
     ///
     /// This class is an implementation of https://en.wikipedia.org/wiki/Negamax
     ///</summary>
@@ -29,6 +29,16 @@ namespace woelib.NegaMax
             return GetBestAction_Internal(gameState, depth, NMScore.MinValue, NMScore.MaxValue, color: 1).action;
         }
 
+        /// <summary>
+        /// For more complex requests, which might take more time to compute than is acceptable in a single frame,
+        /// you will want to craft a Request with an appropriate timeout value set. 
+        /// </summary>
+        /// <returns>
+        /// This function will either return a
+        /// <see cref="ResolvedResponse"/> or a <see cref="PausedResponse"/>. If a <see cref="PausedResponse"/> is returned, you can later resume
+        /// the calculation by passing the <see cref="PausedResponse.ContinuationRequest"/> value to <see cref="Calculator.GetBestAction"/>
+        /// again next frame. When the calculation is complete, a <see cref="ResolvedResponse"/> will be returned.
+        /// </returns>
         public static IResponse GetBestAction(Request request)
         {
             if (request.Depth == 0 || !request.GameState.HasMoves)
