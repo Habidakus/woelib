@@ -24,9 +24,10 @@ namespace woelib.NegaMax
         {
             get
             {
-                return new Request(GameState, Depth, Timeout, BestAction, BestScore, AlphaScore, BetaScore, TurnColorEnum, RemainingAction, ChildResponse == null ? null : ChildResponse.ContinuationRequest);
+                return new Request(GameState, FractionCompleted, Depth, Timeout, BestAction, BestScore, AlphaScore, BetaScore, TurnColorEnum, RemainingAction, ChildResponse == null ? null : ChildResponse.ContinuationRequest);
             }
         }
+        public float FractionCompleted { get; }
 
         private INMGameState GameState { get; }
         private Int32 Depth { get; }
@@ -39,7 +40,15 @@ namespace woelib.NegaMax
         private INMAction[] RemainingAction { get; }
         private PausedResponse? ChildResponse { get; }
 
-        internal PausedResponse(Request request, INMAction? bestAction, NMScore bestScore, NMScore alphaScore, NMScore betaScore, Request.TurnColorEnum turnColor, INMAction[] iNMActions, PausedResponse? childPauseResponse)
+        internal PausedResponse(Request               request,
+                                float                 remainingFractionCompleted,
+                                INMAction?            bestAction,
+                                NMScore               bestScore,
+                                NMScore               alphaScore,
+                                NMScore               betaScore,
+                                Request.TurnColorEnum turnColor,
+                                INMAction[]           iNMActions,
+                                PausedResponse?       childPauseResponse)
         {
             GameState = request.GameState;
             Depth = request.Depth;
@@ -51,6 +60,7 @@ namespace woelib.NegaMax
             TurnColorEnum = turnColor;
             RemainingAction = iNMActions;
             ChildResponse = childPauseResponse;
+            FractionCompleted = request.FractionCompleted + remainingFractionCompleted * (1.0f - request.FractionCompleted);
         }
     }
 }

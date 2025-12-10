@@ -50,7 +50,7 @@ namespace woelib.NegaMax
                 IResponse childResponse = GetBestAction(childRequest);
                 if (childResponse is PausedResponse pr)
                 {
-                    return request.CreatePauseResponse(bestAction, bestScore, index / (float)actions.Count(), actions.AsSpan(index), pr);
+                    return request.CreatePauseResponse(bestAction, bestScore, (index + pr.FractionCompleted) / (float)actions.Count(), actions.AsSpan(index), pr);
                 }
 
                 NMScore reversedScore = (childResponse as ResolvedResponse)!.Score.Reversed;

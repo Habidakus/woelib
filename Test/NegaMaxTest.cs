@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using woelib.NegaMax;
 
 namespace Test
@@ -30,6 +31,34 @@ namespace Test
         }
 
         [TestMethod]
+        public void TestSequential()
+        {
+            CurrentBoard gameState = new CurrentBoard(new Random(1), 25);
+            Request request = new(gameState, 24, TimeSpan.FromSeconds(0.05));
+            do
+            {
+                Stopwatch sw = Stopwatch.StartNew();
+                IResponse response = Calculator.GetBestAction(request);
+                sw.Stop();
+                if (response is PausedResponse pr)
+                {
+                    request = pr.ContinuationRequest;
+                    Console.WriteLine($"Paused at {pr.FractionCompleted * 100f:F2}% after {sw.Elapsed.TotalSeconds:F3} seconds");
+                }
+                else if (response is ResolvedResponse rr)
+                {
+                    INMAction? action = rr.Action;
+                    Console.WriteLine($"Best Action: {action}, Score: {rr.Score}");
+                    break;
+                }
+                else
+                {
+                    throw new Exception($"Bad response type: {response}");
+                }
+            } while (true);
+        }
+
+        [TestMethod]
         public void TestSmall()
         {
             Dictionary<Tuple<int, int>, int> johnWinTracker = new();
@@ -42,7 +71,7 @@ namespace Test
                 {
                     int win = 0;
                     int lost = 0;
-                    for (int seed = 0; seed < 12000; ++seed)
+                    for (int seed = 0; seed < 3000; ++seed)
                     {
                         int johnWins = RunCalculations(johnMoves, donMoves, 2000 + seed);
                         win += johnWins;
@@ -51,7 +80,7 @@ namespace Test
 
                     johnWinTracker[new Tuple<int, int>(johnMoves, donMoves)] = win;
 
-                    Console.WriteLine($"John:{johnMoves} Don:{donMoves}  wins:{win} losses:{lost}");
+                    Console.WriteLine($"John:{johnMoves} Don:{donMoves}  win: {100f * win / (win + lost):F2}%");
 
                     if (johnMoves > 2)
                     {
@@ -114,6 +143,8 @@ namespace Test
                 Left,
                 Right,
             }
+            public override string ToString() => $"{Direction}";
+
             internal MoveDirection Direction { get; }
             private Move(MoveDirection direction)
             {

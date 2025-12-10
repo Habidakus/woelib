@@ -10,6 +10,7 @@ namespace woelib.NegaMax
         public DateTime ExpirationTime { get; }
         private NMScore AlphaScore { get; set; } = NMScore.MinValue;
         private NMScore BetaScore { get; set; } = NMScore.MaxValue;
+        internal float FractionCompleted { get; } = 0.0f;
         internal enum TurnColorEnum
         {
             Invoker = 1,
@@ -59,7 +60,17 @@ namespace woelib.NegaMax
         internal INMAction? InitialBestAction { get; } = null;
         internal NMScore InitialBestScore { get; } = NMScore.MinValue;
 
-        internal Request(INMGameState gameState, int depth, TimeSpan timeout, INMAction? bestAction, NMScore bestScore, NMScore alphaScore, NMScore betaScore, TurnColorEnum turnColorEnum, INMAction[] remainingAction, Request? childRequest)
+        internal Request(INMGameState  gameState,
+                         float         fractionCompleted,
+                         int           depth,
+                         TimeSpan      timeout,
+                         INMAction?    bestAction,
+                         NMScore       bestScore,
+                         NMScore       alphaScore,
+                         NMScore       betaScore,
+                         TurnColorEnum turnColorEnum,
+                         INMAction[]   remainingAction,
+                         Request?      childRequest)
             : this(gameState, depth, timeout)
         {
             AlphaScore = alphaScore;
@@ -69,6 +80,7 @@ namespace woelib.NegaMax
             InitialBestAction = bestAction;
             ContinuationActions = remainingAction;
             FirstChildRequest = childRequest;
+            FractionCompleted = fractionCompleted;
         }
 
         internal Request CreateChild(bool firstChild, INMAction action)
@@ -97,10 +109,11 @@ namespace woelib.NegaMax
         }
 
 
-        internal PausedResponse CreatePauseResponse(INMAction? bestAction, NMScore bestScore, float _fraction_completed, Span<INMAction> remainingActions, PausedResponse? childPauseResponse = null)
+        internal PausedResponse CreatePauseResponse(INMAction? bestAction, NMScore bestScore, float remainingFractionCompleted, Span<INMAction> remainingActions, PausedResponse? childPauseResponse = null)
         {
-            return new PausedResponse(this, bestAction, bestScore, AlphaScore, BetaScore, TurnColor, remainingActions.ToArray(), childPauseResponse);
+            return new PausedResponse(this, remainingFractionCompleted, bestAction, bestScore, AlphaScore, BetaScore, TurnColor, remainingActions.ToArray(), childPauseResponse);
         }
+
         internal ResolvedResponse ExaustResponse
         {
             get
